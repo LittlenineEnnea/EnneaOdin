@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=EnneaOdin
+GenericName=Samsung Flash Tool
+Comment=Cross-platform Samsung firmware flash tool
+Exec=/usr/local/bin/EnneaOdin
+Icon=ennea-odin
+Terminal=false
+Categories=Utility;System;
+Keywords=samsung;flash;odin;heimdall;firmware;android;
+StartupNotify=true

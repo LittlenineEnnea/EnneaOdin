@@ -1,0 +1,14 @@
+# /etc/udev/rules.d/51-samsung-download.rules
+# Samsung Electronics – Download Mode (Odin / Heimdall protocol)
+# Install: sudo cp 51-samsung-download.rules /etc/udev/rules.d/
+#          sudo udevadm control --reload-rules && sudo udevadm trigger
+#          sudo usermod -aG plugdev $USER   (then re-login)
+
+SUBSYSTEM=="usb", ATTR{idVendor}=="04e8", ATTR{idProduct}=="6601", MODE="0666", GROUP="plugdev", SYMLINK+="samsung_download"
+SUBSYSTEM=="usb", ATTR{idVendor}=="04e8", ATTR{idProduct}=="685d", MODE="0666", GROUP="plugdev", SYMLINK+="samsung_download"
+SUBSYSTEM=="usb", ATTR{idVendor}=="04e8", ATTR{idProduct}=="6860", MODE="0666", GROUP="plugdev", SYMLINK+="samsung_download"
+SUBSYSTEM=="usb", ATTR{idVendor}=="04e8", ATTR{idProduct}=="6877", MODE="0666", GROUP="plugdev", SYMLINK+="samsung_download"
+SUBSYSTEM=="usb", ATTR{idVendor}=="04e8", ATTR{idProduct}=="d001", MODE="0666", GROUP="plugdev", SYMLINK+="samsung_download"
+
+# ttyACM device (CDC-ACM driver)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="04e8", MODE="0666", GROUP="plugdev"

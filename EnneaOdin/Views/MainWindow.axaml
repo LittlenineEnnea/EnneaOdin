@@ -1,0 +1,224 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:EnneaOdin.ViewModels"
+        xmlns:cv="using:EnneaOdin.Converters"
+        xmlns:m="using:OdinCore.Models"
+        x:Class="EnneaOdin.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="EnneaOdin – Samsung Flash Tool"
+        Width="920" Height="730"
+        MinWidth="820" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        Background="#12141C">
+
+  <Window.Resources>
+    <cv:BoolToColorConverter x:Key="BoolColor"/>
+  </Window.Resources>
+
+  <Grid RowDefinitions="46,*,30">
+
+    <!-- TITLE BAR -->
+    <Border Grid.Row="0" Background="#0D0F1A" Padding="16,0">
+      <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+          <TextBlock Text="⚡" FontSize="20" Foreground="#5B9BD5" VerticalAlignment="Center"/>
+          <TextBlock Text="EnneaOdin" FontSize="17" FontWeight="Bold" Foreground="#C8E0FF" VerticalAlignment="Center"/>
+          <TextBlock Text="Samsung Flash Tool" FontSize="11" Foreground="#334466" VerticalAlignment="Center" Margin="4,2,0,0"/>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+          <TextBlock Text="heimdall:" Foreground="#334466" FontSize="11" VerticalAlignment="Center"/>
+          <TextBlock Text="{Binding HeimdallPath}" FontSize="11"
+                     Foreground="{Binding HeimdallAvailable, Converter={StaticResource BoolColor}}"
+                     VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="360"/>
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+          <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                   Fill="{Binding DeviceConnected, Converter={StaticResource BoolColor}}"/>
+          <TextBlock Text="{Binding DeviceStatus}" Foreground="#8AAAC8" FontSize="11"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- MAIN -->
+    <Grid Grid.Row="1" ColumnDefinitions="1.05*,1*" Margin="10,8,10,0">
+
+      <!-- LEFT column -->
+      <ScrollViewer Grid.Column="0" Margin="0,0,5,0" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="0">
+
+          <!-- PORT -->
+          <Border Classes="card">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto" RowDefinitions="Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.ColumnSpan="4" Classes="section" Text="PORT / DEVICE"/>
+              <TextBlock Grid.Row="1" Grid.Column="0" Classes="slot-lbl" Text="Port"/>
+              <ComboBox  Grid.Row="1" Grid.Column="1" ItemsSource="{Binding PortList}"
+                         SelectedItem="{Binding SelectedPort}" HorizontalAlignment="Stretch" Margin="6,0"/>
+              <Button    Grid.Row="1" Grid.Column="2" Classes="btn-scan" Content="⟳ Scan"
+                         Command="{Binding ScanPortsCommand}" Margin="4,0"/>
+              <Button    Grid.Row="1" Grid.Column="3" Classes="btn-action" Content="Detect"
+                         Command="{Binding DetectCommand}" Margin="4,0,0,0"/>
+            </Grid>
+          </Border>
+
+          <!-- FIRMWARE SLOTS -->
+          <Border Classes="card">
+            <StackPanel Spacing="7">
+              <TextBlock Classes="section" Text="FIRMWARE SLOTS"/>
+              <!-- BL -->
+              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <TextBlock Grid.Column="0" Classes="slot-lbl" Text="BL"/>
+                <TextBox   Grid.Column="1" Classes="path-box" Text="{Binding SlotBL}"
+                           Watermark="Bootloader (.tar / .tar.md5)" Margin="0,0,4,0"/>
+                <Button Grid.Column="2" Classes="btn-browse" Content="…" Click="OnBrowseBL" Margin="0,0,4,0"/>
+                <Button Grid.Column="3" Classes="btn-clear"  Content="✕"
+                        Command="{Binding ClearSlotCommand}" CommandParameter="BL"/>
+              </Grid>
+              <!-- AP -->
+              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <TextBlock Grid.Column="0" Classes="slot-lbl" Text="AP"/>
+                <TextBox   Grid.Column="1" Classes="path-box" Text="{Binding SlotAP}"
+                           Watermark="Android Partition (.tar / .tar.md5)" Margin="0,0,4,0"/>
+                <Button Grid.Column="2" Classes="btn-browse" Content="…" Click="OnBrowseAP" Margin="0,0,4,0"/>
+                <Button Grid.Column="3" Classes="btn-clear"  Content="✕"
+                        Command="{Binding ClearSlotCommand}" CommandParameter="AP"/>
+              </Grid>
+              <!-- CP -->
+              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <TextBlock Grid.Column="0" Classes="slot-lbl" Text="CP"/>
+                <TextBox   Grid.Column="1" Classes="path-box" Text="{Binding SlotCP}"
+                           Watermark="Modem (.tar / .tar.md5)" Margin="0,0,4,0"/>
+                <Button Grid.Column="2" Classes="btn-browse" Content="…" Click="OnBrowseCP" Margin="0,0,4,0"/>
+                <Button Grid.Column="3" Classes="btn-clear"  Content="✕"
+                        Command="{Binding ClearSlotCommand}" CommandParameter="CP"/>
+              </Grid>
+              <!-- CSC -->
+              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <TextBlock Grid.Column="0" Classes="slot-lbl" Text="CSC"/>
+                <TextBox   Grid.Column="1" Classes="path-box" Text="{Binding SlotCSC}"
+                           Watermark="CSC / HOME_CSC (.tar / .tar.md5)" Margin="0,0,4,0"/>
+                <Button Grid.Column="2" Classes="btn-browse" Content="…" Click="OnBrowseCSC" Margin="0,0,4,0"/>
+                <Button Grid.Column="3" Classes="btn-clear"  Content="✕"
+                        Command="{Binding ClearSlotCommand}" CommandParameter="CSC"/>
+              </Grid>
+              <!-- USERDATA -->
+              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <TextBlock Grid.Column="0" Classes="slot-lbl" Text="USERDATA"/>
+                <TextBox   Grid.Column="1" Classes="path-box" Text="{Binding SlotUserData}"
+                           Watermark="User Data (.tar / .tar.md5)" Margin="0,0,4,0"/>
+                <Button Grid.Column="2" Classes="btn-browse" Content="…" Click="OnBrowseUserData" Margin="0,0,4,0"/>
+                <Button Grid.Column="3" Classes="btn-clear"  Content="✕"
+                        Command="{Binding ClearSlotCommand}" CommandParameter="USERDATA"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <!-- OPTIONS -->
+          <Border Classes="card">
+            <StackPanel Spacing="6">
+              <TextBlock Classes="section" Text="OPTIONS"/>
+              <WrapPanel Orientation="Horizontal">
+                <CheckBox Content="Auto Reboot"       IsChecked="{Binding OptAutoReboot}"      Margin="0,0,14,5"/>
+                <CheckBox Content="Boot Update"       IsChecked="{Binding OptBootUpdate}"      Margin="0,0,14,5"/>
+                <CheckBox Content="EFS Clear"         IsChecked="{Binding OptEfsClear}"        Margin="0,0,14,5"/>
+                <CheckBox Content="Blank Flash"       IsChecked="{Binding OptBlankFlash}"      Margin="0,0,14,5"/>
+                <CheckBox Content="Repartition"       IsChecked="{Binding OptRepartition}"     Margin="0,0,14,5"/>
+                <CheckBox Content="Reset Flash Count" IsChecked="{Binding OptResetFlashCount}" Margin="0,0,14,5"/>
+                <CheckBox Content="NAND Erase All"    IsChecked="{Binding OptNandEraseAll}"    Margin="0,0,14,5"/>
+                <CheckBox Content="Verify Flash"      IsChecked="{Binding OptVerifyFlash}"     Margin="0,0,14,5"/>
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- CONTROLS -->
+          <Border Classes="card">
+            <StackPanel Spacing="10">
+              <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                <Button Classes="btn-flash"  Content="▶  FLASH"  Command="{Binding FlashCommand}"/>
+                <Button Classes="btn-stop"   Content="■  STOP"   Command="{Binding StopCommand}"/>
+                <Button Classes="btn-action" Content="↓ PIT"     Command="{Binding DownloadPitCommand}"
+                        IsEnabled="{Binding !IsFlashing}"/>
+              </StackPanel>
+              <ProgressBar Value="{Binding ProgressValue}" Minimum="0" Maximum="100"/>
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="{Binding ProgressText}"
+                           Foreground="#80AADA" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="1"
+                           Text="{Binding ProgressValue, StringFormat={}{0:F0}%}"
+                           Foreground="#5B9BD5" FontSize="12" FontWeight="SemiBold"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+
+        </StackPanel>
+      </ScrollViewer>
+
+      <!-- RIGHT column: log -->
+      <Grid Grid.Column="1" Margin="5,0,0,0" RowDefinitions="30,*">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="2,0,2,4">
+          <TextBlock Grid.Column="0" Classes="section" Text="LOG"
+                     VerticalAlignment="Center" Margin="4,0,0,0"/>
+          <CheckBox  Grid.Column="1" Content="Debug" IsChecked="{Binding ShowDebug}"
+                     Margin="0,0,8,0" VerticalAlignment="Center"/>
+          <Button    Grid.Column="2" Classes="btn-scan" Content="Clear"
+                     Command="{Binding ClearLogCommand}"/>
+        </Grid>
+
+        <TabControl Grid.Row="1" Background="Transparent">
+          <TabItem Header="Log">
+            <TextBox Classes="log" Name="LogBox" Text="{Binding RawLog}"/>
+          </TabItem>
+          <TabItem Header="Devices">
+            <ScrollViewer>
+              <StackPanel Spacing="10" Margin="8">
+                <TextBlock Text="DETECTED DEVICES" Classes="section"/>
+                <ItemsControl ItemsSource="{Binding FoundDevices}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="m:OdinDevice">
+                      <Border Background="#1C1F2E" CornerRadius="7" Padding="10,7" Margin="0,0,0,5">
+                        <StackPanel Spacing="3">
+                          <TextBlock Text="{Binding Name}" Foreground="#90C8FF" FontSize="13" FontWeight="SemiBold"/>
+                          <TextBlock Text="{Binding Port}"  Foreground="#4A7AAA" FontSize="11"
+                                     FontFamily="Cascadia Mono,Consolas,monospace"/>
+                          <StackPanel Orientation="Horizontal" Spacing="14">
+                            <TextBlock Text="{Binding VID, StringFormat=VID: {0}}" Foreground="#334466" FontSize="11"/>
+                            <TextBlock Text="{Binding PID, StringFormat=PID: {0}}" Foreground="#334466" FontSize="11"/>
+                          </StackPanel>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Border Background="#0F1825" CornerRadius="7" Padding="12">
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="INSTALLATION" Classes="section"/>
+                    <TextBlock TextWrapping="Wrap" Foreground="#4A6688" FontSize="12" LineHeight="20"
+                               FontFamily="Cascadia Mono,Consolas,monospace"
+                               Text="macOS:   brew install heimdall&#10;Linux:   sudo apt install heimdall-flash&#10;&#10;Download Mode (old):  Vol-Down + Home + USB&#10;Download Mode (new):  Bixby + Vol-Down + USB&#10;Then accept warning with Vol-Up."/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
+        </TabControl>
+      </Grid>
+
+    </Grid>
+
+    <!-- STATUS BAR -->
+    <Border Grid.Row="2" Background="#08090F" Padding="14,0">
+      <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="7">
+          <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                   Fill="{Binding DeviceConnected, Converter={StaticResource BoolColor}}"/>
+          <TextBlock Text="{Binding DeviceStatus}" Foreground="#334A66" FontSize="10"/>
+        </StackPanel>
+        <TextBlock Grid.Column="1" Text="{Binding FlashFile}"
+                   Foreground="#2A4A6A" FontSize="10" HorizontalAlignment="Center"
+                   TextTrimming="CharacterEllipsis"/>
+        <TextBlock Grid.Column="2" Text="EnneaOdin v1.0.0  –  GPL-3.0"
+                   Foreground="#1E2E3E" FontSize="10"/>
+      </Grid>
+    </Border>
+
+  </Grid>
+</Window>

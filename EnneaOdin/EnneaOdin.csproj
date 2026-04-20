@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>EnneaOdin</AssemblyName>
+    <RootNamespace>EnneaOdin</RootNamespace>
+    <Version>1.0.0</Version>
+    <Authors>EnneaOdin</Authors>
+    <Description>Cross-platform Samsung flash tool for macOS and Linux</Description>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia"                   Version="11.1.3" />
+    <PackageReference Include="Avalonia.Desktop"           Version="11.1.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent"     Version="11.1.3" />
+    <PackageReference Include="Avalonia.Fonts.Inter"       Version="11.1.3" />
+    <PackageReference Include="Avalonia.ReactiveUI"        Version="11.1.3" />
+    <PackageReference Include="ReactiveUI"                 Version="20.1.1" />
+    <PackageReference Include="CommunityToolkit.Mvvm"      Version="8.3.2"  />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OdinCore/OdinCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets/**" />
+  </ItemGroup>
+</Project>
