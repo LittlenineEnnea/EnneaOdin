@@ -1,0 +1,510 @@
+<!-- EnneaOdin. GPL-3.0; see LICENCE.
+
+     The vocabulary this window is built from: a rounded card with a soft
+     shadow and a tinted title bar, a capsule badge, a coloured callout, a
+     hairline row, a rounded well, three text weights and seven hue pairs.
+
+     Radii are macOS: 12 px card, 7 px control, true capsules for badges.
+     Cards carry the two-shadow macOS recipe - a 1 px contact shadow and a
+     wide soft lift - not the hard offset shadow that reads as Win32.
+
+     COLOUR IS NEVER THE ONLY CARRIER OF MEANING. Every status is a word, every
+     log line says what it is, every destructive option says what it destroys.
+
+     Plain Setters on plain selectors throughout: no ControlTemplate, nothing
+     reaching into a Fluent template part, no colour literals. Selectors use
+     :is(TextBlock) because SelectableTextBlock derives from TextBlock and an
+     Avalonia type selector matches the exact type only. -->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- =============================================== rounded control base -->
+
+  <!-- One radius for every interactive control, set once here rather than on
+       each instance. The earlier markup repeated CornerRadius on every TextBox
+       and ComboBox, which is how two of them ended up at the old 4 px while
+       the rest moved. -->
+  <Style Selector="Button">
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+  </Style>
+
+  <Style Selector="TextBox">
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+  </Style>
+
+  <Style Selector="ComboBox">
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+  </Style>
+
+  <!-- FluentAvalonia sizes a tab header for a document tab bar, which here
+       came out larger than the window's own title. One scale for everything. -->
+  <Style Selector="TabItem">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Padding" Value="12,6" />
+  </Style>
+
+  <Style Selector="Expander">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+  </Style>
+
+  <Style Selector="Expander">
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusWell}" />
+  </Style>
+
+  <Style Selector="ToggleButton">
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+  </Style>
+
+  <!-- The one accent button in the application. A two-stop vertical gradient,
+       lighter at the top, which is how every filled macOS button is shaded;
+       white on it measures 5.69 in light and 5.06 in dark. -->
+  <Style Selector="Button.accent">
+    <Setter Property="Background" Value="{DynamicResource AccentFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentFillHover}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}" />
+  </Style>
+  <Style Selector="Button.accent:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentFillPressed}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}" />
+  </Style>
+
+  <!-- A button that does something destructive. Red text on the ordinary
+       button surface rather than a filled red button: a filled red button
+       next to a filled blue one is two competing accents. -->
+  <Style Selector="Button.danger">
+    <Setter Property="Foreground" Value="{DynamicResource RedText}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <!-- ===================================================== rounded card -->
+
+  <!-- The card. Padding is zero because the title bar has to reach the card's
+       own inner edge for its bottom hairline to span the full width; the body
+       inside carries the padding instead.
+
+       ClipToBounds is deliberately NOT set. It would clip the shadow as well
+       as the children, and the title bar follows the card's curve on its own
+       through RadiusCardInner, so there is nothing left to clip. -->
+  <Style Selector="Border.group">
+    <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="BoxShadow" Value="{DynamicResource CardShadow}" />
+  </Style>
+
+  <!-- The coloured band across the top of the window. -->
+  <Style Selector="Border.band">
+    <Setter Property="Background" Value="{DynamicResource HeaderBandFill}" />
+    <Setter Property="BoxShadow" Value="{DynamicResource BandShadow}" />
+  </Style>
+
+  <!-- A card's title bar: the top two corners rounded to match the card's
+       inner edge, one hairline underneath, and a hue wash set by one of the
+       hdr* classes below. -->
+  <Style Selector="Border.groupHeader">
+    <Setter Property="BorderBrush" Value="{DynamicResource Hairline}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource RowRule}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusCardInner}" />
+    <Setter Property="Padding" Value="{DynamicResource GroupHeaderPadding}" />
+  </Style>
+
+  <Style Selector="Border.groupHeader.hdrBlue">
+    <Setter Property="Background" Value="{DynamicResource BlueTint}" />
+  </Style>
+  <Style Selector="Border.groupHeader.hdrGreen">
+    <Setter Property="Background" Value="{DynamicResource GreenTint}" />
+  </Style>
+  <Style Selector="Border.groupHeader.hdrOrange">
+    <Setter Property="Background" Value="{DynamicResource OrangeTint}" />
+  </Style>
+  <Style Selector="Border.groupHeader.hdrPurple">
+    <Setter Property="Background" Value="{DynamicResource PurpleTint}" />
+  </Style>
+  <Style Selector="Border.groupHeader.hdrTeal">
+    <Setter Property="Background" Value="{DynamicResource TealTint}" />
+  </Style>
+  <Style Selector="Border.groupHeader.hdrPink">
+    <Setter Property="Background" Value="{DynamicResource PinkTint}" />
+  </Style>
+
+  <!-- Everything below the title bar. -->
+  <Style Selector="Border.groupBody">
+    <Setter Property="Padding" Value="{DynamicResource SpaceMd}" />
+  </Style>
+
+  <!-- A card's name. Small, semibold and in its hue's text colour. Written in
+       capitals in the markup rather than transformed, so what the source says
+       is what the window shows. -->
+  <Style Selector=":is(TextBlock).groupTitle">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- ====================================================== the seven hues -->
+
+  <!-- Text in a hue. Applied on its own for a loose value on a card, or by a
+       badge/callout/chip to its own children through the child selectors
+       further down. -->
+  <Style Selector=":is(TextBlock).txtBlue">
+    <Setter Property="Foreground" Value="{DynamicResource BlueText}" />
+  </Style>
+  <Style Selector=":is(TextBlock).txtGreen">
+    <Setter Property="Foreground" Value="{DynamicResource GreenText}" />
+  </Style>
+  <Style Selector=":is(TextBlock).txtOrange">
+    <Setter Property="Foreground" Value="{DynamicResource OrangeText}" />
+  </Style>
+  <Style Selector=":is(TextBlock).txtRed">
+    <Setter Property="Foreground" Value="{DynamicResource RedText}" />
+  </Style>
+  <Style Selector=":is(TextBlock).txtPurple">
+    <Setter Property="Foreground" Value="{DynamicResource PurpleText}" />
+  </Style>
+  <Style Selector=":is(TextBlock).txtTeal">
+    <Setter Property="Foreground" Value="{DynamicResource TealText}" />
+  </Style>
+  <Style Selector=":is(TextBlock).txtPink">
+    <Setter Property="Foreground" Value="{DynamicResource PinkText}" />
+  </Style>
+
+  <!-- A 7 px saturated dot. The one place the Fill shapes are used as a mark;
+       it always sits beside a word, never instead of one. -->
+  <Style Selector="Border.dot">
+    <Setter Property="Width" Value="7" />
+    <Setter Property="Height" Value="7" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Border.dot.dotBlue">
+    <Setter Property="Background" Value="{DynamicResource BlueFill}" />
+  </Style>
+  <Style Selector="Border.dot.dotGreen">
+    <Setter Property="Background" Value="{DynamicResource GreenFill}" />
+  </Style>
+  <Style Selector="Border.dot.dotOrange">
+    <Setter Property="Background" Value="{DynamicResource OrangeFill}" />
+  </Style>
+  <Style Selector="Border.dot.dotRed">
+    <Setter Property="Background" Value="{DynamicResource RedFill}" />
+  </Style>
+  <Style Selector="Border.dot.dotPurple">
+    <Setter Property="Background" Value="{DynamicResource PurpleFill}" />
+  </Style>
+  <Style Selector="Border.dot.dotTeal">
+    <Setter Property="Background" Value="{DynamicResource TealFill}" />
+  </Style>
+  <Style Selector="Border.dot.dotPink">
+    <Setter Property="Background" Value="{DynamicResource PinkFill}" />
+  </Style>
+  <Style Selector="Border.dot.dotGrey">
+    <Setter Property="Background" Value="{DynamicResource TextTertiary}" />
+  </Style>
+
+  <!-- ========================================================== capsules -->
+
+  <!-- A capsule badge: a hue wash with that hue's text on it. The badge sets
+       its own children's foreground through the child selectors, so markup
+       writes the hue once instead of twice and the two halves cannot drift
+       apart. -->
+  <Style Selector="Border.badge">
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="Padding" Value="{DynamicResource BadgePadding}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+  </Style>
+
+  <Style Selector="Border.badge > :is(TextBlock)">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeMicro}" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Border.badge.bgBlue">
+    <Setter Property="Background" Value="{DynamicResource BlueTint}" />
+  </Style>
+  <Style Selector="Border.badge.bgBlue > :is(TextBlock)">
+    <Setter Property="Foreground" Value="{DynamicResource BlueText}" />
+  </Style>
+
+  <Style Selector="Border.badge.bgGreen">
+    <Setter Property="Background" Value="{DynamicResource GreenTint}" />
+  </Style>
+  <Style Selector="Border.badge.bgGreen > :is(TextBlock)">
+    <Setter Property="Foreground" Value="{DynamicResource GreenText}" />
+  </Style>
+
+  <Style Selector="Border.badge.bgOrange">
+    <Setter Property="Background" Value="{DynamicResource OrangeTint}" />
+  </Style>
+  <Style Selector="Border.badge.bgOrange > :is(TextBlock)">
+    <Setter Property="Foreground" Value="{DynamicResource OrangeText}" />
+  </Style>
+
+  <Style Selector="Border.badge.bgRed">
+    <Setter Property="Background" Value="{DynamicResource RedTint}" />
+  </Style>
+  <Style Selector="Border.badge.bgRed > :is(TextBlock)">
+    <Setter Property="Foreground" Value="{DynamicResource RedText}" />
+  </Style>
+
+  <Style Selector="Border.badge.bgPurple">
+    <Setter Property="Background" Value="{DynamicResource PurpleTint}" />
+  </Style>
+  <Style Selector="Border.badge.bgPurple > :is(TextBlock)">
+    <Setter Property="Foreground" Value="{DynamicResource PurpleText}" />
+  </Style>
+
+  <Style Selector="Border.badge.bgTeal">
+    <Setter Property="Background" Value="{DynamicResource TealTint}" />
+  </Style>
+  <Style Selector="Border.badge.bgTeal > :is(TextBlock)">
+    <Setter Property="Foreground" Value="{DynamicResource TealText}" />
+  </Style>
+
+  <Style Selector="Border.badge.bgPink">
+    <Setter Property="Background" Value="{DynamicResource PinkTint}" />
+  </Style>
+  <Style Selector="Border.badge.bgPink > :is(TextBlock)">
+    <Setter Property="Foreground" Value="{DynamicResource PinkText}" />
+  </Style>
+
+  <Style Selector="Border.badge.bgGrey">
+    <Setter Property="Background" Value="{DynamicResource SubtleFill}" />
+  </Style>
+  <Style Selector="Border.badge.bgGrey > :is(TextBlock)">
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+  </Style>
+
+  <!-- A slot chip: the same capsule, fixed to the width of the widest slot
+       name so a column of them lines up. USERDATA is the widest. -->
+  <Style Selector="Border.badge.chip">
+    <Setter Property="MinWidth" Value="76" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+  </Style>
+
+  <!-- =============================================== segmented control -->
+
+  <!-- A macOS segmented control: a capsule well with capsule ToggleButtons
+       inside it, the selected one filled. Built from ToggleButtons on purpose
+       - see the note at the top of this file.
+
+       CURRENTLY UNUSED BY THE WINDOW. The CSC choice was a segmented control
+       and is now a pair of tick boxes: a mutually exclusive pair reads more
+       plainly as two ticks than as two filled buttons, and each tick can carry
+       its own consequence badge beside it. These nine selectors stay because a
+       segmented control is still the right shape for a future three-way
+       choice. If a release goes by with nothing using them, delete them. -->
+  <Style Selector="Border.segmented">
+    <Setter Property="Background" Value="{DynamicResource SubtleFill}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hairline}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="Padding" Value="2" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="ToggleButton.seg">
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="14,4" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+  </Style>
+  <Style Selector="ToggleButton.seg /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="ToggleButton.seg:checked /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}" />
+  </Style>
+  <Style Selector="ToggleButton.seg:checked">
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <!-- A destructive segment is filled red instead of blue when it is the one
+       selected, because CSC erases user data and HOME_CSC does not. -->
+  <Style Selector="ToggleButton.seg.segDanger:checked /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource RedDeep}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}" />
+  </Style>
+
+  <!-- ========================================================== callouts -->
+
+  <!-- A coloured callout: a hue wash, rounded, with a 3 px bar of the
+       saturated fill down the left edge. This is what a destructive option
+       sits in. -->
+  <Style Selector="Border.callout">
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusWell}" />
+    <Setter Property="Padding" Value="{DynamicResource CalloutPadding}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource CalloutBar}" />
+  </Style>
+
+  <Style Selector="Border.callout.coBlue">
+    <Setter Property="Background" Value="{DynamicResource BlueTint}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BlueFill}" />
+  </Style>
+  <Style Selector="Border.callout.coGreen">
+    <Setter Property="Background" Value="{DynamicResource GreenTint}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource GreenFill}" />
+  </Style>
+  <Style Selector="Border.callout.coOrange">
+    <Setter Property="Background" Value="{DynamicResource OrangeTint}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource OrangeFill}" />
+  </Style>
+  <Style Selector="Border.callout.coRed">
+    <Setter Property="Background" Value="{DynamicResource RedTint}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource RedFill}" />
+  </Style>
+  <Style Selector="Border.callout.coPurple">
+    <Setter Property="Background" Value="{DynamicResource PurpleTint}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PurpleFill}" />
+  </Style>
+
+  <!-- ============================================================== text -->
+
+  <Style Selector=":is(TextBlock).secondary">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+  </Style>
+
+  <Style Selector=":is(TextBlock).tertiary">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextTertiary}" />
+  </Style>
+
+  <Style Selector=":is(TextBlock).micro">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeMicro}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextTertiary}" />
+  </Style>
+
+  <Style Selector=":is(TextBlock).strong">
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+  </Style>
+
+  <Style Selector=":is(TextBlock).heading">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeSubtitle}" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+  </Style>
+
+  <!-- A form row's label. Right-aligned so that a column of path fields lines
+       up on its left edge, which is the macOS form convention. -->
+  <Style Selector=":is(TextBlock).fieldLabel">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    <Setter Property="HorizontalAlignment" Value="Right" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- Hex offsets, byte counts and the log. -->
+  <Style Selector=":is(TextBlock).mono">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFontFamily}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+  </Style>
+
+  <!-- ============================================================== rows -->
+
+  <!-- One row with a hairline under it, rather than a ruled table: no
+       vertical rules, no alternating fill, no box around each cell. Vertical
+       padding is on the 4 px grid and there is no fixed row height, so a
+       larger system font grows the row instead of clipping it. -->
+  <Style Selector="Border.row">
+    <Setter Property="BorderBrush" Value="{DynamicResource Hairline}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource RowRule}" />
+    <Setter Property="Padding" Value="{DynamicResource RowPadding}" />
+  </Style>
+
+  <!-- The last row of a card has no separator under it, because there is
+       nothing below it to separate from. -->
+  <Style Selector="Border.row.last">
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+
+  <!-- A rounded inset well: the surface a log or a table sits in, one step
+       away from the card's own surface. -->
+  <Style Selector="Border.well">
+    <Setter Property="Background" Value="{DynamicResource SubtleFill}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hairline}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusWell}" />
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+
+  <!-- A list inside a well. Fluent's own ListBoxItem is 36 px tall with 12 px
+       of side padding, which is right for a settings list and wrong for a
+       flash log: it would show half as many lines and indent every timestamp.
+       MinHeight 0 lets the row be as tall as its text. -->
+  <Style Selector="Border.well ListBox">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Padding" Value="{DynamicResource SpaceXs}" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+
+  <Style Selector="Border.well ListBoxItem">
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Padding" Value="6,2" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+  </Style>
+
+  <!-- ======================================================== progress -->
+
+  <!-- A capsule track with a gradient fill, 8 px tall. Fluent's own
+       ProgressBar is 4 px and square-ended. -->
+  <Style Selector="ProgressBar">
+    <Setter Property="Height" Value="8" />
+    <Setter Property="MinHeight" Value="8" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="Background" Value="{DynamicResource SubtleFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource ProgressFill}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Hairline}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+
+  <!-- =================================================== log and status -->
+
+  <!-- Log-level and status foregrounds. The level TEXT is the signal; these
+       are a secondary cue only, which is the only presentation that works for
+       a reader who cannot distinguish them. -->
+  <Style Selector=":is(TextBlock).lvlInfo">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+  </Style>
+  <Style Selector=":is(TextBlock).lvlDbg">
+    <Setter Property="Foreground" Value="{DynamicResource TextTertiary}" />
+  </Style>
+  <Style Selector=":is(TextBlock).lvlWarn">
+    <Setter Property="Foreground" Value="{DynamicResource OrangeText}" />
+  </Style>
+  <Style Selector=":is(TextBlock).lvlErr">
+    <Setter Property="Foreground" Value="{DynamicResource RedText}" />
+  </Style>
+  <Style Selector=":is(TextBlock).lvlOk">
+    <Setter Property="Foreground" Value="{DynamicResource GreenText}" />
+  </Style>
+
+  <!-- ====================================================== odds and ends -->
+
+  <Style Selector="GridSplitter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <Style Selector="CheckBox">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+  </Style>
+
+</Styles>

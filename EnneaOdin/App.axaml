@@ -1,9 +1,31 @@
+<!-- EnneaOdin. GPL-3.0; see LICENCE.
+
+     FluentAvaloniaTheme only, never also FluentTheme: two resource sets would
+     fight over the same keys.
+
+     PreferSystemTheme follows the OS light/dark setting. PreferUserAccentColor
+     is off and CustomAccentColor is ours, because every colour in
+     Styles/Tokens.axaml is measured for contrast and an accent taken from the
+     desktop is the one nobody checked. #0A7AFF is BlueFill; it is a literal
+     here only because CustomAccentColor is a Color, not a Brush. -->
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="EnneaOdin.App"
-             RequestedThemeVariant="Dark">
+             xmlns:sty="using:FluentAvalonia.Styling"
+             x:Class="EnneaOdin.App">
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://EnneaOdin/Styles/Tokens.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+
   <Application.Styles>
-    <FluentTheme />
-    <StyleInclude Source="avares://EnneaOdin/Styles/AppStyle.axaml"/>
+    <sty:FluentAvaloniaTheme PreferSystemTheme="True"
+                             PreferUserAccentColor="False"
+                             CustomAccentColor="#0A7AFF" />
+    <StyleInclude Source="avares://EnneaOdin/Styles/Components.axaml" />
   </Application.Styles>
+
 </Application>

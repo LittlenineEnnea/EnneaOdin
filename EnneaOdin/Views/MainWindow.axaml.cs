@@ -1,63 +1,105 @@
+// EnneaOdin. Copyright (c) 2025 EnneaOdin contributors.
+//
+// Not derived from Heimdall.
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+using System;
+using System.Text;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
-using Avalonia.Platform.Storage;
 using EnneaOdin.ViewModels;
 
 namespace EnneaOdin.Views;
 
+/// <summary>
+/// The window. One thing lives here because a view model cannot do it:
+/// scrolling the log. Everything else is markup bound to
+/// <see cref="MainWindowViewModel"/>.
+/// </summary>
 public partial class MainWindow : Window
 {
-    public MainWindow() => InitializeComponent();
+    private LogPaneViewModel? _log;
 
-    private MainWindowViewModel VM => (MainWindowViewModel)DataContext!;
-
-    // ── File picker filter for Samsung firmware files ─────────────────────────
-    private static readonly FilePickerFileType FirmwareFilter = new("Samsung Firmware")
+    public MainWindow()
     {
-        Patterns = new[] { "*.tar", "*.md5", "*.tar.md5", "*.img", "*.bin", "*.lz4" },
-        MimeTypes = new[] { "application/octet-stream" }
-    };
-
-    private static readonly FilePickerOpenOptions PickerOptions = new()
-    {
-        Title = "Select Samsung Firmware Package",
-        AllowMultiple = false,
-        FileTypeFilter = new[] { FirmwareFilter, FilePickerFileTypes.All }
-    };
-
-    private async Task<string?> PickFileAsync()
-    {
-        var result = await StorageProvider.OpenFilePickerAsync(PickerOptions);
-        return result.Count > 0 ? result[0].TryGetLocalPath() : null;
+        InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
     }
 
-    private async void OnBrowseBL(object? sender, RoutedEventArgs e)
+    private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        var path = await PickFileAsync();
-        if (path != null) VM.SlotBL = path;
+        Detach();
+
+        if (DataContext is not MainWindowViewModel model)
+            return;
+
+        _log = model.Log;
+        _log.RowsAppended += OnRowsAppended;
+
+        // The data context can arrive after a flash has filled the ring.
+        ScrollToEnd();
     }
 
-    private async void OnBrowseAP(object? sender, RoutedEventArgs e)
+    protected override void OnClosed(EventArgs e)
     {
-        var path = await PickFileAsync();
-        if (path != null) VM.SlotAP = path;
+        Detach();
+        base.OnClosed(e);
     }
 
-    private async void OnBrowseCP(object? sender, RoutedEventArgs e)
+    private void Detach()
     {
-        var path = await PickFileAsync();
-        if (path != null) VM.SlotCP = path;
+        if (_log is null)
+            return;
+
+        _log.RowsAppended -= OnRowsAppended;
+        _log = null;
     }
 
-    private async void OnBrowseCSC(object? sender, RoutedEventArgs e)
+    // From the log pane's flush timer: already on the UI thread and already
+    // batched, so a burst costs one scroll per tick rather than one per line.
+    private void OnRowsAppended(object? sender, EventArgs e) => ScrollToEnd();
+
+    // How many rows are already in the box, so a flush appends only what is
+    // new instead of rebuilding the whole log. A flash produces thousands of
+    // lines and rebuilding a string that long on every tick is quadratic.
+    private int _rendered;
+
+    private readonly StringBuilder _text = new();
+
+    private void Render()
     {
-        var path = await PickFileAsync();
-        if (path != null) VM.SlotCSC = path;
+        if (_log is null)
+            return;
+
+        // Cleared, or trimmed from the front: start again.
+        if (_log.Rows.Count < _rendered)
+        {
+            _text.Clear();
+            _rendered = 0;
+        }
+
+        if (_log.Rows.Count == _rendered)
+            return;
+
+        for (int i = _rendered; i < _log.Rows.Count; i++)
+            _text.Append(_log.Rows[i].Line).Append('\n');
+
+        _rendered = _log.Rows.Count;
+
+        // The caret and selection are reset by assigning Text, so a selection
+        // the user made is only disturbed when there is actually new output.
+        LogBox.Text = _text.ToString();
     }
 
-    private async void OnBrowseUserData(object? sender, RoutedEventArgs e)
+    private void ScrollToEnd()
     {
-        var path = await PickFileAsync();
-        if (path != null) VM.SlotUserData = path;
+        Render();
+
+        if (_log is null || !_log.AutoScroll)
+            return;
+
+        // The box owns its scroll viewer, so this is a caret move rather than
+        // a viewport call: putting the caret at the end scrolls it into view.
+        LogBox.CaretIndex = LogBox.Text?.Length ?? 0;
     }
 }

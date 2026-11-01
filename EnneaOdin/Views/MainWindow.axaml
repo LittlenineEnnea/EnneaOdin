@@ -1,222 +1,772 @@
+<!-- EnneaOdin. GPL-3.0; see LICENCE.
+
+     Odin's layout in macOS dress. Band, DEVICE, then LOG on the left with
+     FIRMWARE / OPTIONS / PLAN / ADVANCED on the right, then the action strip.
+     The band, DEVICE and the strip span the width and are always on screen: a
+     flash takes minutes and Stop has to be reachable throughout.
+
+     Stock title bar, system font, no custom chrome - that is the single
+     largest source of platform breakage and none of it can be tested here.
+     Sizes are stars with minimums, so a larger system font grows the layout
+     instead of clipping it. -->
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:EnneaOdin.ViewModels"
-        xmlns:cv="using:EnneaOdin.Converters"
-        xmlns:m="using:OdinCore.Models"
         x:Class="EnneaOdin.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="EnneaOdin – Samsung Flash Tool"
-        Width="920" Height="730"
-        MinWidth="820" MinHeight="620"
-        WindowStartupLocation="CenterScreen"
-        Background="#12141C">
+        Title="EnneaOdin"
+        Icon="/Assets/icon.png"
+        Background="{DynamicResource AppBackground}"
+        Width="1180" Height="760" MinWidth="880" MinHeight="560">
 
-  <Window.Resources>
-    <cv:BoolToColorConverter x:Key="BoolColor"/>
-  </Window.Resources>
+  <Grid RowDefinitions="Auto,Auto,*,Auto">
 
-  <Grid RowDefinitions="46,*,30">
+    <!-- ===================================================== the band (top) -->
+    <Border Grid.Row="0" x:Name="HeaderBand" Classes="band" Padding="16,12">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto">
 
-    <!-- TITLE BAR -->
-    <Border Grid.Row="0" Background="#0D0F1A" Padding="16,0">
-      <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
-        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
-          <TextBlock Text="⚡" FontSize="20" Foreground="#5B9BD5" VerticalAlignment="Center"/>
-          <TextBlock Text="EnneaOdin" FontSize="17" FontWeight="Bold" Foreground="#C8E0FF" VerticalAlignment="Center"/>
-          <TextBlock Text="Samsung Flash Tool" FontSize="11" Foreground="#334466" VerticalAlignment="Center" Margin="4,2,0,0"/>
+        <TextBlock Grid.Column="0" Classes="heading" VerticalAlignment="Center"
+                   Text="EnneaOdin" />
+
+        <!-- Read from the assembly, so it cannot drift from the build. -->
+        <SelectableTextBlock Grid.Column="1" Classes="mono tertiary" Margin="10,0,0,0"
+                             VerticalAlignment="Center"
+                             Text="{Binding VersionNumber}" />
+
+        <!-- The status word, not just a colour. -->
+        <Border Grid.Column="2" Classes="badge" Margin="16,0" HorizontalAlignment="Left"
+                Classes.bgGreen="{Binding StatusIsReady}"
+                Classes.bgOrange="{Binding StatusIsWarning}"
+                Classes.bgRed="{Binding StatusIsError}"
+                Classes.bgGrey="{Binding !StatusIsReady}">
+          <TextBlock Text="{Binding StatusText}" />
+        </Border>
+
+        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center"
+                    Spacing="{DynamicResource SpaceSmValue}">
+          <Button Content="Refresh" Command="{Binding RefreshCommand}" />
+          <!-- This window has no About page. The version, the GPL-3.0 notice
+               and the Heimdall attribution that Heimdall's MIT licence
+               requires be retained live in the dialogue this opens. -->
+          <Button Content="About" Command="{Binding ShowAboutCommand}" />
         </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
-          <TextBlock Text="heimdall:" Foreground="#334466" FontSize="11" VerticalAlignment="Center"/>
-          <TextBlock Text="{Binding HeimdallPath}" FontSize="11"
-                     Foreground="{Binding HeimdallAvailable, Converter={StaticResource BoolColor}}"
-                     VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="360"/>
-        </StackPanel>
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
-          <Ellipse Width="8" Height="8" VerticalAlignment="Center"
-                   Fill="{Binding DeviceConnected, Converter={StaticResource BoolColor}}"/>
-          <TextBlock Text="{Binding DeviceStatus}" Foreground="#8AAAC8" FontSize="11"/>
-        </StackPanel>
+
       </Grid>
     </Border>
 
-    <!-- MAIN -->
-    <Grid Grid.Row="1" ColumnDefinitions="1.05*,1*" Margin="10,8,10,0">
+    <!-- ==================================================== DEVICE (top) -->
+    <Border Grid.Row="1" x:Name="DeviceRegion" Classes="group" Margin="16,16,16,0">
+      <Grid RowDefinitions="Auto,Auto">
 
-      <!-- LEFT column -->
-      <ScrollViewer Grid.Column="0" Margin="0,0,5,0" VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="0">
+        <!-- Blue, not green: a green header over a disconnected handset
+             reads as "ready". The pill and the Status cell carry the state. -->
+        <Border Grid.Row="0" Classes="groupHeader hdrBlue">
+          <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+            <Border Grid.Column="0" Classes="dot dotBlue" Margin="0,0,8,0" />
+            <TextBlock Grid.Column="1" Classes="groupTitle txtBlue" Text="DEVICE" />
+            <StackPanel Grid.Column="3" Orientation="Horizontal"
+                        Spacing="{DynamicResource SpaceSmValue}">
+              <!-- Nothing here writes to the device. Reading the partition
+                   table ends its session without rebooting, so the handset
+                   stays in download mode and the next operation resumes. -->
+              <!-- Always here. It was gated on a successful read, which meant
+                   it did not exist until after the thing it reveals had
+                   happened; with nothing attached the tables hold the
+                   diagnosis, which is exactly when a user wants to look. -->
+              <ToggleButton Content="Details"
+                            IsChecked="{Binding ShowDeviceDetail, Mode=TwoWay}"
+                            ToolTip.Tip="Show or hide the information and partition tables" />
+              <Button Content="Read PIT" Command="{Binding ReadPitCommand}" />
+              <Button Content="Save PIT..." Command="{Binding SavePitCommand}" />
+              <Button Content="Reboot device" Command="{Binding RebootDeviceCommand}" />
+            </StackPanel>
+          </Grid>
+        </Border>
 
-          <!-- PORT -->
-          <Border Classes="card">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto" RowDefinitions="Auto,Auto">
-              <TextBlock Grid.Row="0" Grid.ColumnSpan="4" Classes="section" Text="PORT / DEVICE"/>
-              <TextBlock Grid.Row="1" Grid.Column="0" Classes="slot-lbl" Text="Port"/>
-              <ComboBox  Grid.Row="1" Grid.Column="1" ItemsSource="{Binding PortList}"
-                         SelectedItem="{Binding SelectedPort}" HorizontalAlignment="Stretch" Margin="6,0"/>
-              <Button    Grid.Row="1" Grid.Column="2" Classes="btn-scan" Content="⟳ Scan"
-                         Command="{Binding ScanPortsCommand}" Margin="4,0"/>
-              <Button    Grid.Row="1" Grid.Column="3" Classes="btn-action" Content="Detect"
-                         Command="{Binding DetectCommand}" Margin="4,0,0,0"/>
+        <Border Grid.Row="1" Classes="groupBody">
+          <StackPanel Spacing="{DynamicResource SpaceSmValue}">
+
+            <!-- A device box, not a dropdown. It says it is waiting, and
+                 when a handset appears the model is read automatically and
+                 lands here; see MaybeAutoReadAsync. -->
+            <Border Classes="well" Padding="12,10">
+              <Grid ColumnDefinitions="Auto,*">
+                <!-- Top, not centred: with the identity block above it the
+                     dot would otherwise float down beside the second row. -->
+                <Border Grid.Column="0" Classes="dot" Margin="0,6,10,0"
+                        VerticalAlignment="Top"
+                        Classes.dotGreen="{Binding StatusIsReady}"
+                        Classes.dotOrange="{Binding StatusIsWarning}"
+                        Classes.dotRed="{Binding StatusIsError}"
+                        Classes.dotGrey="{Binding !StatusIsReady}" />
+                <StackPanel Grid.Column="1" Spacing="2">
+
+                  <!-- What the handset says it is, read with the protocol's
+                       DVIF command the moment it connects. First, because the
+                       model and the carrier are what a user checks before
+                       pressing Start. Hidden until the handset answers. -->
+                  <StackPanel IsVisible="{Binding HasIdentity}" Spacing="6"
+                              Margin="0,0,0,8">
+                    <SelectableTextBlock Classes="heading"
+                                         Text="{Binding IdentityModel}" />
+
+                    <!-- Margins, not ColumnSpacing: that is Avalonia 11.2
+                         and this targets 11.1.3. -->
+                    <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*"
+                          RowDefinitions="Auto,Auto">
+                      <TextBlock Grid.Row="0" Grid.Column="0" Classes="micro tertiary" Margin="0,0,8,0"
+                                 Text="Carrier" VerticalAlignment="Center" />
+                      <SelectableTextBlock Grid.Row="0" Grid.Column="1" Classes="mono strong" Margin="0,0,8,0"
+                                           Text="{Binding IdentityCarrier}" />
+
+                      <TextBlock Grid.Row="0" Grid.Column="2" Classes="micro tertiary" Margin="0,0,8,0"
+                                 Text="Storage" VerticalAlignment="Center" />
+                      <SelectableTextBlock Grid.Row="0" Grid.Column="3" Classes="mono strong" Margin="0,0,8,0"
+                                           Text="{Binding IdentityStorage}" />
+
+                      <TextBlock Grid.Row="0" Grid.Column="4" Classes="micro tertiary" Margin="0,0,8,0"
+                                 Text="Firmware" VerticalAlignment="Center" />
+                      <SelectableTextBlock Grid.Row="0" Grid.Column="5" Classes="mono strong"
+                                           Text="{Binding IdentityFirmware}" />
+
+                      <TextBlock Grid.Row="1" Grid.Column="0" Classes="micro tertiary" Margin="0,3,8,0"
+                                 Text="DID" VerticalAlignment="Center" />
+                      <SelectableTextBlock Grid.Row="1" Grid.Column="1" Classes="mono" Margin="0,3,8,0"
+                                           Text="{Binding IdentityDeviceId}" />
+
+                      <TextBlock Grid.Row="1" Grid.Column="2" Classes="micro tertiary" Margin="0,3,8,0"
+                                 Text="Serial" VerticalAlignment="Center" />
+                      <SelectableTextBlock Grid.Row="1" Grid.Column="3" Classes="mono" Margin="0,3,8,0"
+                                           Text="{Binding IdentityUniqueNumber}" />
+
+                      <TextBlock Grid.Row="1" Grid.Column="4" Classes="micro tertiary" Margin="0,3,8,0"
+                                 Text="Vendor" VerticalAlignment="Center" />
+                      <SelectableTextBlock Grid.Row="1" Grid.Column="5" Classes="mono" Margin="0,3,0,0"
+                                           Text="{Binding IdentityVendor}" />
+                    </Grid>
+
+                  </StackPanel>
+
+                  <SelectableTextBlock Classes="strong" TextWrapping="Wrap"
+                                       Text="{Binding DeviceSummary}" />
+                  <SelectableTextBlock Classes="tertiary" TextWrapping="Wrap"
+                                       IsVisible="{Binding DeviceDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                       Text="{Binding DeviceDetail}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <!-- Only with something to choose between. -->
+            <ComboBox HorizontalAlignment="Stretch"
+                      IsVisible="{Binding HasMultipleDevices}"
+                      PlaceholderText="Choose a device"
+                      ItemsSource="{Binding Devices}"
+                      SelectedItem="{Binding SelectedDevice, Mode=TwoWay}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:DeviceItemViewModel">
+                  <StackPanel>
+                    <TextBlock Classes="mono" Text="{Binding Display}" />
+                    <TextBlock Classes="tertiary" Text="{Binding StatusWord}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <!-- Three facts on one hairline-separated row. Selectable,
+                 because the value a user needs to paste into a bug report is
+                 usually one of these three. The status word carries its own
+                 foreground as a secondary cue; the word itself is always the
+                 signal.
+
+                 The actionable detail is deliberately not a fourth cell here:
+                 StatusMessage below already begins with the status word and
+                 folds in the device, the detail and the libusb install
+                 command, so a Detail column would print the same sentence
+                 twice and in a narrower measure. -->
+
+
+            <!-- Never empty: the typed diagnosis, in words. -->
+            <!-- Only when something is wrong. With a handset connected the
+                 box above already says everything this would repeat. -->
+            <SelectableTextBlock x:Name="StatusLine" Classes="tertiary" TextWrapping="Wrap"
+                                 IsVisible="{Binding !StatusIsReady}"
+                                 Text="{Binding StatusMessage}" />
+
+            <!-- Only when it is missing, and then it says what to build. -->
+            <Border Classes="callout coRed" IsVisible="{Binding !EngineAvailable}">
+              <StackPanel Spacing="{DynamicResource SpaceXsValue}">
+                <TextBlock Classes="strong txtRed" Text="The protocol engine is not loaded" />
+                <SelectableTextBlock Classes="tertiary" TextWrapping="Wrap"
+                                     Text="{Binding EngineDetail}" />
+              </StackPanel>
+            </Border>
+
+            <!-- Driven by Details. Starts hidden, never opens by itself. -->
+            <TabControl Padding="0" Margin="0,4,0,0"
+                        IsVisible="{Binding ShowDeviceDetail}">
+
+              <TabItem Header="Information">
+                <Border Classes="well" Margin="0,8,0,0">
+                  <ListBox x:Name="InfoList" MaxHeight="220"
+                           ItemsSource="{Binding InfoRows}"
+                           ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate x:DataType="vm:InfoRowViewModel">
+                        <Grid ColumnDefinitions="104,210,*" ToolTip.Tip="{Binding Source}">
+                          <TextBlock Grid.Column="0" Classes="mono tertiary" Margin="0,0,8,0"
+                                     Text="{Binding Group}" />
+                          <TextBlock Grid.Column="1" Classes="mono" Margin="0,0,8,0"
+                                     Text="{Binding Name}" />
+                          <SelectableTextBlock Grid.Column="2" Classes="mono"
+                                               Text="{Binding Value}" />
+                        </Grid>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                </Border>
+              </TabItem>
+
+              <TabItem Header="Partitions">
+                <StackPanel Spacing="{DynamicResource SpaceSmValue}" Margin="0,8,0,0">
+                  <SelectableTextBlock Classes="mono tertiary" TextWrapping="Wrap"
+                                       Text="{Binding PartitionTableSource}" />
+                  <Border Classes="well">
+                    <ListBox x:Name="PartitionList" MaxHeight="220"
+                             ItemsSource="{Binding PartitionRows}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                      <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:InfoRowViewModel">
+                          <Grid ColumnDefinitions="248,*" ToolTip.Tip="{Binding Source}">
+                            <TextBlock Grid.Column="0" Classes="mono" Margin="0,0,8,0"
+                                       Text="{Binding Name}" />
+                            <SelectableTextBlock Grid.Column="1" Classes="mono"
+                                                 Text="{Binding Value}" />
+                          </Grid>
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+                  </Border>
+                </StackPanel>
+              </TabItem>
+
+            </TabControl>
+
+          </StackPanel>
+        </Border>
+
+      </Grid>
+    </Border>
+
+    <!-- ================================ LOG (left) | FIRMWARE, OPTIONS (right) -->
+    <Grid Grid.Row="2" Margin="16,16,16,0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" MinWidth="340" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" MinWidth="440" />
+      </Grid.ColumnDefinitions>
+
+      <!-- ================================================= LOG, bottom left -->
+      <Border Grid.Column="0" x:Name="LogRegion" Classes="group">
+        <Grid RowDefinitions="Auto,*,Auto">
+
+          <Border Grid.Row="0" Classes="groupHeader hdrTeal">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+              <Border Grid.Column="0" Classes="dot dotTeal" Margin="0,0,8,0" />
+              <TextBlock Grid.Column="1" Classes="groupTitle txtTeal" Text="LOG" />
+              <StackPanel Grid.Column="3" Orientation="Horizontal"
+                          Spacing="{DynamicResource SpaceSmValue}">
+                <Button Content="Clear" Command="{Binding ClearLogCommand}" />
+                <Button Content="Save log..." Command="{Binding SaveLogCommand}" />
+              </StackPanel>
             </Grid>
           </Border>
 
-          <!-- FIRMWARE SLOTS -->
-          <Border Classes="card">
-            <StackPanel Spacing="7">
-              <TextBlock Classes="section" Text="FIRMWARE SLOTS"/>
-              <!-- BL -->
-              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                <TextBlock Grid.Column="0" Classes="slot-lbl" Text="BL"/>
-                <TextBox   Grid.Column="1" Classes="path-box" Text="{Binding SlotBL}"
-                           Watermark="Bootloader (.tar / .tar.md5)" Margin="0,0,4,0"/>
-                <Button Grid.Column="2" Classes="btn-browse" Content="…" Click="OnBrowseBL" Margin="0,0,4,0"/>
-                <Button Grid.Column="3" Classes="btn-clear"  Content="✕"
-                        Command="{Binding ClearSlotCommand}" CommandParameter="BL"/>
-              </Grid>
-              <!-- AP -->
-              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                <TextBlock Grid.Column="0" Classes="slot-lbl" Text="AP"/>
-                <TextBox   Grid.Column="1" Classes="path-box" Text="{Binding SlotAP}"
-                           Watermark="Android Partition (.tar / .tar.md5)" Margin="0,0,4,0"/>
-                <Button Grid.Column="2" Classes="btn-browse" Content="…" Click="OnBrowseAP" Margin="0,0,4,0"/>
-                <Button Grid.Column="3" Classes="btn-clear"  Content="✕"
-                        Command="{Binding ClearSlotCommand}" CommandParameter="AP"/>
-              </Grid>
-              <!-- CP -->
-              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                <TextBlock Grid.Column="0" Classes="slot-lbl" Text="CP"/>
-                <TextBox   Grid.Column="1" Classes="path-box" Text="{Binding SlotCP}"
-                           Watermark="Modem (.tar / .tar.md5)" Margin="0,0,4,0"/>
-                <Button Grid.Column="2" Classes="btn-browse" Content="…" Click="OnBrowseCP" Margin="0,0,4,0"/>
-                <Button Grid.Column="3" Classes="btn-clear"  Content="✕"
-                        Command="{Binding ClearSlotCommand}" CommandParameter="CP"/>
-              </Grid>
-              <!-- CSC -->
-              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                <TextBlock Grid.Column="0" Classes="slot-lbl" Text="CSC"/>
-                <TextBox   Grid.Column="1" Classes="path-box" Text="{Binding SlotCSC}"
-                           Watermark="CSC / HOME_CSC (.tar / .tar.md5)" Margin="0,0,4,0"/>
-                <Button Grid.Column="2" Classes="btn-browse" Content="…" Click="OnBrowseCSC" Margin="0,0,4,0"/>
-                <Button Grid.Column="3" Classes="btn-clear"  Content="✕"
-                        Command="{Binding ClearSlotCommand}" CommandParameter="CSC"/>
-              </Grid>
-              <!-- USERDATA -->
-              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                <TextBlock Grid.Column="0" Classes="slot-lbl" Text="USERDATA"/>
-                <TextBox   Grid.Column="1" Classes="path-box" Text="{Binding SlotUserData}"
-                           Watermark="User Data (.tar / .tar.md5)" Margin="0,0,4,0"/>
-                <Button Grid.Column="2" Classes="btn-browse" Content="…" Click="OnBrowseUserData" Margin="0,0,4,0"/>
-                <Button Grid.Column="3" Classes="btn-clear"  Content="✕"
-                        Command="{Binding ClearSlotCommand}" CommandParameter="USERDATA"/>
-              </Grid>
-            </StackPanel>
+          <!-- Heimdall's own output, in a read-only TextBox.
+               
+               A TEXT BOX AND NOT A SelectableTextBlock, deliberately, and at
+               the cost of the per-line colour a TextBox cannot do. Select-all
+               was tried three times on a SelectableTextBlock and worked none
+               of them: the control is not focusable so a KeyDown handler on it
+               never ran, a handler on the window never saw Cmd+A because macOS
+               routes a Cmd gesture through the menu bar first, and a native
+               menu item for it could not be verified from here at all. A
+               TextBox gets select-all, copy and selection from the framework,
+               on every platform, with no code in this file. The levels are
+               still in the text, as the ERROR and WARNING prefixes Heimdall
+               itself prints. -->
+          <Border Grid.Row="1" Classes="well" Margin="12,12,12,0">
+            <TextBox x:Name="LogBox" Classes="mono"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     BorderThickness="0"
+                     Background="Transparent"
+                     Padding="8,6"
+                     VerticalAlignment="Stretch"
+                     VerticalContentAlignment="Top"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
           </Border>
 
-          <!-- OPTIONS -->
-          <Border Classes="card">
-            <StackPanel Spacing="6">
-              <TextBlock Classes="section" Text="OPTIONS"/>
-              <WrapPanel Orientation="Horizontal">
-                <CheckBox Content="Auto Reboot"       IsChecked="{Binding OptAutoReboot}"      Margin="0,0,14,5"/>
-                <CheckBox Content="Boot Update"       IsChecked="{Binding OptBootUpdate}"      Margin="0,0,14,5"/>
-                <CheckBox Content="EFS Clear"         IsChecked="{Binding OptEfsClear}"        Margin="0,0,14,5"/>
-                <CheckBox Content="Blank Flash"       IsChecked="{Binding OptBlankFlash}"      Margin="0,0,14,5"/>
-                <CheckBox Content="Repartition"       IsChecked="{Binding OptRepartition}"     Margin="0,0,14,5"/>
-                <CheckBox Content="Reset Flash Count" IsChecked="{Binding OptResetFlashCount}" Margin="0,0,14,5"/>
-                <CheckBox Content="NAND Erase All"    IsChecked="{Binding OptNandEraseAll}"    Margin="0,0,14,5"/>
-                <CheckBox Content="Verify Flash"      IsChecked="{Binding OptVerifyFlash}"     Margin="0,0,14,5"/>
-              </WrapPanel>
-            </StackPanel>
-          </Border>
-
-          <!-- CONTROLS -->
-          <Border Classes="card">
-            <StackPanel Spacing="10">
-              <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                <Button Classes="btn-flash"  Content="▶  FLASH"  Command="{Binding FlashCommand}"/>
-                <Button Classes="btn-stop"   Content="■  STOP"   Command="{Binding StopCommand}"/>
-                <Button Classes="btn-action" Content="↓ PIT"     Command="{Binding DownloadPitCommand}"
-                        IsEnabled="{Binding !IsFlashing}"/>
+          <Border Grid.Row="2" Classes="groupBody">
+            <StackPanel Spacing="{DynamicResource SpaceXsValue}">
+              <StackPanel Orientation="Horizontal" Spacing="{DynamicResource SpaceLgValue}">
+                <CheckBox Content="Auto-scroll"
+                          IsChecked="{Binding Log.AutoScroll, Mode=TwoWay}" />
               </StackPanel>
-              <ProgressBar Value="{Binding ProgressValue}" Minimum="0" Maximum="100"/>
-              <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Grid.Column="0" Text="{Binding ProgressText}"
-                           Foreground="#80AADA" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                <TextBlock Grid.Column="1"
-                           Text="{Binding ProgressValue, StringFormat={}{0:F0}%}"
-                           Foreground="#5B9BD5" FontSize="12" FontWeight="SemiBold"/>
-              </Grid>
+              <TextBlock Classes="tertiary" TextWrapping="Wrap"
+                         Text="Save log always writes every level, including the debug lines Verbose hides." />
             </StackPanel>
           </Border>
 
-        </StackPanel>
-      </ScrollViewer>
-
-      <!-- RIGHT column: log -->
-      <Grid Grid.Column="1" Margin="5,0,0,0" RowDefinitions="30,*">
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="2,0,2,4">
-          <TextBlock Grid.Column="0" Classes="section" Text="LOG"
-                     VerticalAlignment="Center" Margin="4,0,0,0"/>
-          <CheckBox  Grid.Column="1" Content="Debug" IsChecked="{Binding ShowDebug}"
-                     Margin="0,0,8,0" VerticalAlignment="Center"/>
-          <Button    Grid.Column="2" Classes="btn-scan" Content="Clear"
-                     Command="{Binding ClearLogCommand}"/>
         </Grid>
+      </Border>
 
-        <TabControl Grid.Row="1" Background="Transparent">
-          <TabItem Header="Log">
-            <TextBox Classes="log" Name="LogBox" Text="{Binding RawLog}"/>
-          </TabItem>
-          <TabItem Header="Devices">
-            <ScrollViewer>
-              <StackPanel Spacing="10" Margin="8">
-                <TextBlock Text="DETECTED DEVICES" Classes="section"/>
-                <ItemsControl ItemsSource="{Binding FoundDevices}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="m:OdinDevice">
-                      <Border Background="#1C1F2E" CornerRadius="7" Padding="10,7" Margin="0,0,0,5">
-                        <StackPanel Spacing="3">
-                          <TextBlock Text="{Binding Name}" Foreground="#90C8FF" FontSize="13" FontWeight="SemiBold"/>
-                          <TextBlock Text="{Binding Port}"  Foreground="#4A7AAA" FontSize="11"
-                                     FontFamily="Cascadia Mono,Consolas,monospace"/>
-                          <StackPanel Orientation="Horizontal" Spacing="14">
-                            <TextBlock Text="{Binding VID, StringFormat=VID: {0}}" Foreground="#334466" FontSize="11"/>
-                            <TextBlock Text="{Binding PID, StringFormat=PID: {0}}" Foreground="#334466" FontSize="11"/>
-                          </StackPanel>
+      <GridSplitter Grid.Column="1" x:Name="ColumnSplitter" Width="12"
+                    ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+
+      <!-- ============================ the right column: three pages -->
+      <!-- Keeps the overlay scrollbar off the cards' shadows. -->
+      <ScrollViewer Grid.Column="2" x:Name="RightColumn"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto"
+                    Padding="0,0,10,0">
+
+          <!-- Three pages. Firmware slots are one way to say what to write,
+               naming partitions outright is the other, and Options holds the
+               switches that apply to both. Selecting Options does NOT change
+               which of the two the flash comes from; see SelectedPage. -->
+          <TabControl Padding="0" SelectedIndex="{Binding SelectedPage, Mode=TwoWay}">
+
+            <TabItem Header="Firmware">
+            <!-- =============================================== FIRMWARE -->
+            <Border x:Name="FirmwareRegion" Classes="group">
+              <Grid RowDefinitions="Auto,Auto">
+                <Border Grid.Row="0" Classes="groupHeader hdrPurple">
+                  <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                    <Border Grid.Column="0" Classes="dot dotPurple" Margin="0,0,8,0" />
+                    <TextBlock Grid.Column="1" Classes="groupTitle txtPurple" Text="FIRMWARE" />
+                    <StackPanel Grid.Column="3" Orientation="Horizontal"
+                                Spacing="{DynamicResource SpaceSmValue}">
+                      <Button Content="Import bundle..." Command="{Binding ImportBundleCommand}"
+                              ToolTip.Tip="Open a firmware .zip and match its archives to the rows. Nothing is extracted until Start." />
+                      <Button Content="Close bundle" Command="{Binding ClearBundleCommand}" />
+                    </StackPanel>
+                  </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Classes="groupBody">
+                  <StackPanel Spacing="{DynamicResource SpaceSmValue}">
+
+                    <!-- Every figure comes from the zip's central directory. -->
+                    <Border Classes="callout coBlue">
+                      <StackPanel Spacing="{DynamicResource SpaceXsValue}">
+                        <SelectableTextBlock Classes="mono txtBlue" TextWrapping="Wrap"
+                                             IsVisible="{Binding BundleLoaded}"
+                                             Text="{Binding BundlePath}" />
+                        <TextBlock Classes="tertiary" TextWrapping="Wrap"
+                                   Text="{Binding BundleSummary}" />
+                      </StackPanel>
+                    </Border>
+
+                    <!-- Only meaningful with a bundle open. -->
+                    <Border Classes="row" IsVisible="{Binding BundleLoaded}">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Margin="0,0,12,0"
+                                    Spacing="{DynamicResource SpaceXsValue}">
+                          <TextBlock Classes="strong" Text="CSC archive" />
+                          <TextBlock Classes="tertiary" TextWrapping="Wrap"
+                                     Text="{Binding CscModeNote}" />
+                          <TextBlock Classes="micro" TextWrapping="Wrap"
+                                     IsVisible="{Binding !BundleHasBothCsc}"
+                                     Text="This bundle ships only one of the two." />
                         </StackPanel>
-                      </Border>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <Border Background="#0F1825" CornerRadius="7" Padding="12">
-                  <StackPanel Spacing="4">
-                    <TextBlock Text="INSTALLATION" Classes="section"/>
-                    <TextBlock TextWrapping="Wrap" Foreground="#4A6688" FontSize="12" LineHeight="20"
-                               FontFamily="Cascadia Mono,Consolas,monospace"
-                               Text="macOS:   brew install heimdall&#10;Linux:   sudo apt install heimdall-flash&#10;&#10;Download Mode (old):  Vol-Down + Home + USB&#10;Download Mode (new):  Bixby + Vol-Down + USB&#10;Then accept warning with Vol-Up."/>
+                        <!-- Mutually exclusive, enforced by the view model:
+                             IsChecked is one-way and the click goes through a
+                             command, which re-notifies even when unchanged so
+                             the tick comes back.
+
+                             TextBlock content, not a string: AccessText eats the
+                             underscore and renders HOME_CSC as HOMECSC. -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center"
+                                    Spacing="{DynamicResource SpaceXsValue}">
+                          <CheckBox IsChecked="{Binding IsCscMode, Mode=OneWay}"
+                                    Command="{Binding SelectCscCommand}">
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="{DynamicResource SpaceSmValue}">
+                              <TextBlock Text="CSC" VerticalAlignment="Center" />
+                              <Border Classes="badge bgRed">
+                                <TextBlock Text="ERASES USER DATA" />
+                              </Border>
+                            </StackPanel>
+                          </CheckBox>
+                          <CheckBox IsChecked="{Binding IsHomeCscMode, Mode=OneWay}"
+                                    Command="{Binding SelectHomeCscCommand}">
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="{DynamicResource SpaceSmValue}">
+                              <TextBlock Text="HOME_CSC" VerticalAlignment="Center" />
+                              <Border Classes="badge bgGreen">
+                                <TextBlock Text="KEEPS USER DATA" />
+                              </Border>
+                            </StackPanel>
+                          </CheckBox>
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+
+                    <!-- Importing a bundle ticks BL, AP, CP and CSC; USERDATA
+                         is filled but not ticked. Unticking a row excludes it
+                         from the plan AND from the extraction. -->
+                    <ItemsControl ItemsSource="{Binding Slots}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:FirmwareSlotViewModel">
+                          <!-- The first column is a fixed 116 and not Auto, so
+                               the PIT row below - which has a spacer there
+                               rather than a tick box - starts its chip at the
+                               same x. With Auto they were 12 px apart. -->
+                          <Grid ColumnDefinitions="116,*,Auto,Auto,Auto" Margin="0,0,0,8">
+
+                            <!-- The chip IS the tick box's content, so
+                                 clicking the word AP includes or excludes AP. -->
+                            <CheckBox Grid.Column="0" Margin="0,0,8,0" MinWidth="0"
+                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                      IsEnabled="{Binding IsSelectable}"
+                                      ToolTip.Tip="Include this slot in the flash"
+                                      AutomationProperties.Name="{Binding Label}">
+                              <Border Classes="badge chip"
+                                      Classes.bgPurple="{Binding IsHuePurple}"
+                                      Classes.bgBlue="{Binding IsHueBlue}"
+                                      Classes.bgTeal="{Binding IsHueTeal}"
+                                      Classes.bgGreen="{Binding IsHueGreen}"
+                                      Classes.bgOrange="{Binding IsHueOrange}">
+                                <TextBlock Text="{Binding DisplayLabel}" />
+                              </Border>
+                            </CheckBox>
+
+                            <!-- A bundle row names a zip entry, not a path,
+                                 so it cannot be typed into. -->
+                            <TextBox Grid.Column="1" Margin="0,0,8,0"
+                                     IsVisible="{Binding !IsFromBundle}"
+                                     Watermark="No file chosen"
+                                     Text="{Binding FilePath, Mode=TwoWay}"
+                                     IsEnabled="{Binding IsEnabled}" />
+                            <Border Grid.Column="1" Classes="well" Margin="0,0,8,0"
+                                    Padding="8,5" IsVisible="{Binding IsFromBundle}">
+                              <SelectableTextBlock Classes="mono" TextWrapping="NoWrap"
+                                                   Text="{Binding SourceText}" />
+                            </Border>
+
+                            <TextBlock Grid.Column="2" Classes="mono tertiary" MinWidth="64"
+                                       Margin="0,0,8,0" VerticalAlignment="Center"
+                                       TextAlignment="Right" Text="{Binding SizeText}" />
+
+                            <Button Grid.Column="3" Content="..." MinWidth="44"
+                                    Command="{Binding BrowseCommand}"
+                                    ToolTip.Tip="{Binding BrowseHint}"
+                                    AutomationProperties.Name="{Binding BrowseHint}" />
+
+                            <Button Grid.Column="4" Content="Clear" Margin="8,0,0,0"
+                                    IsVisible="{Binding HasPath}"
+                                    Command="{Binding ClearRowCommand}"
+                                    ToolTip.Tip="Empty this row" />
+
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- On screen while the choice is being made. -->
+                    <Border Classes="callout coRed" IsVisible="{Binding SelectionErasesUserData}">
+                      <StackPanel Spacing="{DynamicResource SpaceXsValue}">
+                        <TextBlock Classes="strong txtRed" Text="This selection ERASES USER DATA" />
+                        <TextBlock Classes="tertiary" TextWrapping="Wrap"
+                                   Text="USERDATA and the plain CSC archive both write the user partition." />
+                      </StackPanel>
+                    </Border>
+
+                    <!-- Not a firmware container: it feeds the planner's
+                         local-PIT argument. Always enabled, because a PIT
+                         without Re-partition is a claim about the layout the
+                         device already has and the planner checks it. -->
+                    <Border Classes="row last">
+                      <Grid ColumnDefinitions="116,*,Auto,Auto" Margin="0,4,0,0">
+                        <!-- 28 px stands in for the tick box the slot rows
+                             have, so the chips line up. The PIT is not flashed,
+                             so it has none. -->
+                        <Border Grid.Column="0" Classes="badge chip bgPink"
+                                Margin="28,0,8,0" HorizontalAlignment="Left">
+                          <TextBlock Text="{Binding PitSlot.Label}" />
+                        </Border>
+                        <TextBox Grid.Column="1" Margin="0,0,8,0"
+                                 Watermark="No PIT chosen"
+                                 Text="{Binding PitSlot.FilePath, Mode=TwoWay}"
+                                 IsEnabled="{Binding PitSlot.IsEnabled}" />
+                        <Button Grid.Column="2" Content="..." MinWidth="44"
+                                Command="{Binding PitSlot.BrowseCommand}"
+                                ToolTip.Tip="{Binding PitSlot.BrowseHint}"
+                                AutomationProperties.Name="{Binding PitSlot.BrowseHint}" />
+                        <Button Grid.Column="3" Content="Load" Margin="8,0,0,0"
+                                Command="{Binding LoadPitFileCommand}"
+                                ToolTip.Tip="Parse this PIT and show its partition table. Needs no device." />
+                      </Grid>
+                    </Border>
+
+                    <TextBlock Classes="tertiary" TextWrapping="Wrap" Margin="0,4,0,0"
+                               Text="{Binding SelectionSummary}" />
+
+                    <TextBlock Classes="tertiary" TextWrapping="Wrap"
+                               Text="Start matches every image to a partition, shows the plan for confirmation, then writes it. An image that matches nothing refuses the flash rather than guessing." />
                   </StackPanel>
                 </Border>
-              </StackPanel>
-            </ScrollViewer>
-          </TabItem>
-        </TabControl>
-      </Grid>
+              </Grid>
+            </Border>
+            </TabItem>
 
+            <TabItem Header="Manual">
+              <!-- Name the partition, point at a file. No archive is built and
+                   nothing is written to disk: the partition is named outright,
+                   so there is nothing to match by file name, and each image is
+                   streamed straight off disk. See FlashPlanner.BuildManual. -->
+              <Border Classes="group" Margin="0,8,0,0">
+                <Grid RowDefinitions="Auto,Auto">
+                  <Border Grid.Row="0" Classes="groupHeader hdrTeal">
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                      <Border Grid.Column="0" Classes="dot dotTeal" Margin="0,0,8,0" />
+                      <TextBlock Grid.Column="1" Classes="groupTitle txtTeal"
+                                 Text="PARTITIONS" />
+                      <StackPanel Grid.Column="3" Orientation="Horizontal"
+                                  Spacing="{DynamicResource SpaceSmValue}">
+                        <Button Content="Add row" Command="{Binding AddManualRowCommand}" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+
+                  <Border Grid.Row="1" Classes="groupBody">
+                    <StackPanel Spacing="{DynamicResource SpaceSmValue}">
+
+                      <Grid ColumnDefinitions="160,*,Auto,Auto,Auto">
+                        <TextBlock Grid.Column="0" Classes="tertiary" Text="Partition" />
+                        <TextBlock Grid.Column="1" Classes="tertiary" Margin="8,0,0,0"
+                                   Text="Image" />
+                      </Grid>
+
+                      <ItemsControl ItemsSource="{Binding ManualRows}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:ManualRowViewModel">
+                            <Grid ColumnDefinitions="160,*,Auto,Auto,Auto" Margin="0,0,0,8">
+                              <TextBox Grid.Column="0" Margin="0,0,8,0"
+                                       Watermark="boot"
+                                       Text="{Binding PartitionName, Mode=TwoWay}" />
+                              <TextBox Grid.Column="1" Margin="0,0,8,0"
+                                       Watermark="boot.img"
+                                       Text="{Binding FilePath, Mode=TwoWay}" />
+                              <TextBlock Grid.Column="2" Classes="mono tertiary" MinWidth="64"
+                                         Margin="0,0,8,0" VerticalAlignment="Center"
+                                         TextAlignment="Right" Text="{Binding SizeText}" />
+                              <Button Grid.Column="3" Content="..." MinWidth="44"
+                                      Command="{Binding BrowseCommand}"
+                                      ToolTip.Tip="Choose the image for this partition" />
+                              <Button Grid.Column="4" Content="Remove" Margin="8,0,0,0"
+                                      Command="{Binding RemoveCommand}" />
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+
+                      <TextBlock Classes="tertiary" TextWrapping="Wrap"
+                                 Text="{Binding ManualSummary}" />
+
+                      <TextBlock Classes="tertiary" TextWrapping="Wrap"
+                                 Text="Names are matched against the device PIT, ignoring case, and written in this order. Read PIT first if you want to see what the handset calls its partitions. A .lz4 image is decompressed on the way out; nothing is packed and nothing is written to disk." />
+                    </StackPanel>
+                  </Border>
+                </Grid>
+              </Border>
+            </TabItem>
+
+            <TabItem Header="Options">
+              <StackPanel Margin="0,8,0,0" Spacing="{DynamicResource SpaceMdValue}">
+              <!-- ================================================ OPTIONS -->
+              <Border x:Name="OptionsRegion" Classes="group">
+                <Grid RowDefinitions="Auto,Auto">
+                  <Border Grid.Row="0" Classes="groupHeader hdrOrange">
+                    <Grid ColumnDefinitions="Auto,Auto">
+                      <Border Grid.Column="0" Classes="dot dotOrange" Margin="0,0,8,0" />
+                      <TextBlock Grid.Column="1" Classes="groupTitle txtOrange" Text="OPTIONS" />
+                    </Grid>
+                  </Border>
+
+                  <Border Grid.Row="1" Classes="groupBody">
+                    <StackPanel Spacing="{DynamicResource SpaceSmValue}">
+
+                      <Border Classes="row">
+                        <StackPanel Spacing="{DynamicResource SpaceXsValue}">
+                          <CheckBox Content="Auto reboot"
+                                    IsChecked="{Binding RebootWhenFinished, Mode=TwoWay}" />
+                          <TextBlock Classes="tertiary" TextWrapping="Wrap" Margin="26,0,0,0"
+                                     Text="Ends the session with a reboot request, so the handset leaves download mode." />
+                        </StackPanel>
+                      </Border>
+
+                      <!-- Destructive options are callouts, not grey small print. -->
+                      <Border Classes="callout coRed">
+                        <StackPanel Spacing="{DynamicResource SpaceXsValue}">
+                          <CheckBox Content="Re-partition"
+                                    IsChecked="{Binding Repartition, Mode=TwoWay}" />
+                          <TextBlock Classes="tertiary" TextWrapping="Wrap" Margin="26,0,0,0"
+                                     Text="Overwrites the partition table with the supplied PIT. A wrong PIT can leave the device unable to boot." />
+                        </StackPanel>
+                      </Border>
+
+                      <Border Classes="callout coOrange">
+                        <StackPanel Spacing="{DynamicResource SpaceXsValue}">
+                          <CheckBox Content="T-Flash" IsChecked="{Binding TFlash, Mode=TwoWay}" />
+                          <TextBlock Classes="tertiary" TextWrapping="Wrap" Margin="26,0,0,0"
+                                     Text="Writes to the removable SD card instead of internal storage, overwriting everything on it." />
+                        </StackPanel>
+                      </Border>
+
+                      <Border Classes="callout coOrange" Margin="0,0,0,4">
+                        <StackPanel Spacing="{DynamicResource SpaceXsValue}">
+                          <CheckBox Content="Skip partition size check"
+                                    IsChecked="{Binding SkipSizeCheck, Mode=TwoWay}" />
+                          <TextBlock Classes="tertiary" TextWrapping="Wrap" Margin="26,0,0,0"
+                                     Text="Sends an image larger than its partition anyway; the write overruns into whatever follows." />
+                        </StackPanel>
+                      </Border>
+
+
+
+                    </StackPanel>
+                  </Border>
+                </Grid>
+              </Border>
+
+              <!-- =============================================== ADVANCED -->
+              <Border x:Name="AdvancedRegion" Classes="group">
+                <Grid RowDefinitions="Auto,Auto">
+                  <Border Grid.Row="0" Classes="groupHeader hdrPink">
+                    <Grid ColumnDefinitions="Auto,Auto">
+                      <Border Grid.Column="0" Classes="dot dotPink" Margin="0,0,8,0" />
+                      <TextBlock Grid.Column="1" Classes="groupTitle txtPink" Text="ADVANCED" />
+                    </Grid>
+                  </Border>
+
+                  <Border Grid.Row="1" Classes="groupBody">
+                    <StackPanel>
+
+                      <Border Classes="row">
+                        <StackPanel Spacing="{DynamicResource SpaceXsValue}">
+                          <CheckBox Content="Resume an open session"
+                                    IsChecked="{Binding ResumeSession, Mode=TwoWay}" />
+                          <TextBlock Classes="tertiary" TextWrapping="Wrap" Margin="26,0,0,0"
+                                     Text="Skips the ODIN and LOKE handshake. Set automatically after an operation that did not reboot." />
+                        </StackPanel>
+                      </Border>
+
+                      <Border Classes="row">
+                        <StackPanel Spacing="{DynamicResource SpaceXsValue}">
+                          <CheckBox Content="Wait for a device to appear"
+                                    IsChecked="{Binding WaitForDevice, Mode=TwoWay}" />
+                          <TextBlock Classes="tertiary" TextWrapping="Wrap" Margin="26,0,0,0"
+                                     Text="Keeps re-enumerating until a download-mode device appears, instead of failing. Stop cancels it." />
+                        </StackPanel>
+                      </Border>
+
+                      <Border Classes="row">
+                        <StackPanel Spacing="{DynamicResource SpaceXsValue}">
+                          <CheckBox Content="Verify archive MD5 digests"
+                                    IsChecked="{Binding VerifyDigests, Mode=TwoWay}" />
+                          <TextBlock Classes="tertiary" TextWrapping="Wrap" Margin="26,0,0,0"
+                                     Text="Hashes each .tar.md5 before anything is sent. Off by default: about 21 s on this firmware, and the LZ4 checksum already covers most of it." />
+                        </StackPanel>
+                      </Border>
+
+                      <Border Classes="row">
+                        <StackPanel Spacing="{DynamicResource SpaceXsValue}">
+                          <CheckBox Content="Stream images from the archive"
+                                    IsChecked="{Binding StreamImages, Mode=TwoWay}" />
+                          <TextBlock Classes="tertiary" TextWrapping="Wrap" Margin="26,0,0,0"
+                                     Text="On: images are read straight out of their archives, nothing is written to disk. Off: everything is extracted to a temporary directory first." />
+                        </StackPanel>
+                      </Border>
+
+                      <Border Classes="row last">
+                        <StackPanel Spacing="{DynamicResource SpaceXsValue}">
+                          <CheckBox Content="Verbose log"
+                                    IsChecked="{Binding VerboseLog, Mode=TwoWay}" />
+                          <TextBlock Classes="tertiary" TextWrapping="Wrap" Margin="26,0,0,0"
+                                     Text="One switch for all of it: debug lines in the log, a line per packet and retry, and libusb raised from error to info." />
+                        </StackPanel>
+                      </Border>
+
+
+
+                    </StackPanel>
+                  </Border>
+                </Grid>
+              </Border>
+              </StackPanel>
+            </TabItem>
+
+          </TabControl>
+      </ScrollViewer>
     </Grid>
 
-    <!-- STATUS BAR -->
-    <Border Grid.Row="2" Background="#08090F" Padding="14,0">
-      <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
-        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="7">
-          <Ellipse Width="7" Height="7" VerticalAlignment="Center"
-                   Fill="{Binding DeviceConnected, Converter={StaticResource BoolColor}}"/>
-          <TextBlock Text="{Binding DeviceStatus}" Foreground="#334A66" FontSize="10"/>
+    <!-- ============================================== action strip (bottom) -->
+    <Border Grid.Row="3" x:Name="ActionStrip"
+            Margin="0,16,0,0"
+            Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource Hairline}"
+            BorderThickness="0,1,0,0"
+            Padding="16,12">
+      <Grid ColumnDefinitions="*,Auto">
+
+        <!-- Two bars, as Odin has: the partition on top, the whole flash
+             under it. -->
+        <Grid Grid.Column="0" Margin="0,0,20,0" VerticalAlignment="Center"
+              ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto"
+              ShowGridLines="False">
+
+          <ProgressBar Grid.Row="0" Grid.Column="0" Minimum="0" Maximum="100"
+                       Margin="0,0,10,0"
+                       Value="{Binding PartitionProgress, Mode=OneWay}"
+                       IsIndeterminate="{Binding ProgressIndeterminate}" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Classes="mono" MinWidth="200"
+                     Text="{Binding PartitionLabel}" />
+
+          <ProgressBar Grid.Row="1" Grid.Column="0" Minimum="0" Maximum="100"
+                       Margin="0,8,10,0"
+                       Value="{Binding ProgressValue, Mode=OneWay}" />
+          <!-- Wide enough for "100%   38.4 MB/s   12m 05s left" without the
+               strip reflowing as the figures change width. -->
+          <TextBlock Grid.Row="1" Grid.Column="1" Classes="mono" Margin="0,8,0,0"
+                     MinWidth="260" Text="{Binding TotalLabel}" />
+
+          <SelectableTextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                               Classes="tertiary" Margin="0,6,0,0"
+                               IsVisible="{Binding !IsBlocked}"
+                               TextWrapping="Wrap" Text="{Binding PhaseText}" />
+
+          <!-- Why Start is grey. A disabled button with no reason beside it
+               is the thing this replaces. -->
+          <SelectableTextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                               Classes="tertiary txtOrange" Margin="0,6,0,0"
+                               IsVisible="{Binding IsBlocked}"
+                               TextWrapping="Wrap" Text="{Binding BlockedReason}" />
+        </Grid>
+
+        <!-- Stop sits beside Start rather than replacing it: a button that
+             appears under the pointer gets pressed by accident. Start is the
+             only accent button, rightmost and default, as on macOS. -->
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                    Spacing="{DynamicResource SpaceSmValue}">
+          <Button Content="Reset" MinWidth="88" Command="{Binding ResetCommand}" />
+          <Button Content="Stop" Classes="danger" MinWidth="88" Command="{Binding StopCommand}" />
+          <Button Content="Start" Classes="accent" IsDefault="True" MinWidth="104"
+                  Command="{Binding StartCommand}" />
         </StackPanel>
-        <TextBlock Grid.Column="1" Text="{Binding FlashFile}"
-                   Foreground="#2A4A6A" FontSize="10" HorizontalAlignment="Center"
-                   TextTrimming="CharacterEllipsis"/>
-        <TextBlock Grid.Column="2" Text="EnneaOdin v1.0.0  –  GPL-3.0"
-                   Foreground="#1E2E3E" FontSize="10"/>
+
       </Grid>
     </Border>
 

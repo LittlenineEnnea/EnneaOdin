@@ -1,8 +1,20 @@
+# Build output
 bin/
 obj/
 dist/
+
+# Editor and IDE
 .vs/
+.vscode/
+.idea/
 *.user
-.DS_Store
-*.swp
 *.suo
+*.swp
+
+# OS
+.DS_Store
+
+# Native bridge build output (out-of-source CMake)
+native/build/
+native/build-*/
+EnneaOdin.app/

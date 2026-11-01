@@ -1,0 +1,265 @@
+<!-- EnneaOdin. GPL-3.0; see LICENCE.
+
+     The only place a colour literal may appear. Everything else is
+     {DynamicResource}, and Dynamic rather than Static because the two theme
+     dictionaries below are swapped at run time.
+
+     Seven hues, each in three shapes:
+       <Hue>Fill   a saturated mark - a dot, a progress fill. Never behind text.
+       <Hue>Tint   an opaque wash behind a badge, a title bar, a callout.
+       <Hue>Text   the readable foreground, measured against its own Tint AND
+                   against both box surfaces.
+
+     Every pair is measured by the self-testing ramp script, which asserts
+     21.00 for black on white and 4.48 for #777777 on white before reporting
+     anything. Text needs 4.5:1; a Fill is a mark and needs 1.4:1. Lowest in
+     the set: TextTertiary on AppBackground, 4.81 light; BlueText on BlueTint,
+     5.28 light and 7.15 dark.
+
+     Hue assignment is fixed, so a slot keeps its colour everywhere:
+       Blue AP and the accent, Purple BL, Teal CP, Green CSC and success,
+       Orange USERDATA and warnings, Pink PIT, Red failure and destruction.
+
+     CardBorder and Hairline measure 1.13 to 1.79 against the surfaces on
+     purpose: they are hairlines, not text. -->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <ResourceDictionary.ThemeDictionaries>
+
+    <ResourceDictionary x:Key="Light">
+
+      <!-- surfaces -->
+      <SolidColorBrush x:Key="AppBackground"  Color="#F4F4F8" />
+      <SolidColorBrush x:Key="CardBackground" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="CardBorder"     Color="#D7D7DC" />
+      <SolidColorBrush x:Key="SubtleFill"     Color="#F7F7FA" />
+      <SolidColorBrush x:Key="Hairline"       Color="#E5E5EA" />
+
+      <!-- text -->
+      <SolidColorBrush x:Key="TextPrimary"    Color="#1C1C1E" />
+      <SolidColorBrush x:Key="TextSecondary"  Color="#55555C" />
+      <SolidColorBrush x:Key="TextTertiary"   Color="#6B6B74" />
+      <SolidColorBrush x:Key="TextOnAccent"   Color="#FFFFFF" />
+
+      <!-- the seven hues -->
+      <SolidColorBrush x:Key="BlueFill"   Color="#0A7AFF" />
+      <SolidColorBrush x:Key="BlueTint"   Color="#E4F0FF" />
+      <SolidColorBrush x:Key="BlueText"   Color="#0B5FC4" />
+
+      <SolidColorBrush x:Key="GreenFill"  Color="#1DB954" />
+      <SolidColorBrush x:Key="GreenTint"  Color="#E2F7E8" />
+      <SolidColorBrush x:Key="GreenText"  Color="#0B5C2B" />
+
+      <SolidColorBrush x:Key="OrangeFill" Color="#FF9500" />
+      <SolidColorBrush x:Key="OrangeTint" Color="#FFF0DC" />
+      <SolidColorBrush x:Key="OrangeText" Color="#8A4B00" />
+
+      <SolidColorBrush x:Key="RedFill"    Color="#FF3B30" />
+      <SolidColorBrush x:Key="RedTint"    Color="#FFE8E6" />
+      <SolidColorBrush x:Key="RedText"    Color="#B3261E" />
+
+      <SolidColorBrush x:Key="PurpleFill" Color="#9B51E0" />
+      <SolidColorBrush x:Key="PurpleTint" Color="#F2E8FD" />
+      <SolidColorBrush x:Key="PurpleText" Color="#6B21A8" />
+
+      <SolidColorBrush x:Key="TealFill"   Color="#17A2B8" />
+      <SolidColorBrush x:Key="TealTint"   Color="#DEF3F7" />
+      <SolidColorBrush x:Key="TealText"   Color="#0B6070" />
+
+      <SolidColorBrush x:Key="PinkFill"   Color="#FF2D74" />
+      <SolidColorBrush x:Key="PinkTint"   Color="#FFE4EE" />
+      <SolidColorBrush x:Key="PinkText"   Color="#B01049" />
+
+      <!-- The one accent button, and one of the two places white sits on a
+           colour. BOTH STOPS of every gradient below are measured under white,
+           not just the one that happens to be darker: the first version of
+           this file had a #1E79E8 top stop on which white is 4.24, so the top
+           half of the Start button failed while the bottom half passed and
+           the ramp script reported PASS because it only ever measured a fill
+           as a mark against a surface. The script now has a whiteOn section
+           and a control pair that must keep failing.
+
+           The accent gradient is deliberately IDENTICAL in the dark
+           dictionary. White on a filled accent has the same contrast whatever
+           is behind the button, and one accent identity across both themes is
+           the entire point of having one accent. -->
+      <LinearGradientBrush x:Key="AccentFill" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Offset="0" Color="#1A72DD" />
+        <GradientStop Offset="1" Color="#0B63CE" />
+      </LinearGradientBrush>
+      <LinearGradientBrush x:Key="AccentFillHover" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Offset="0" Color="#1C74DF" />
+        <GradientStop Offset="1" Color="#1468CF" />
+      </LinearGradientBrush>
+      <SolidColorBrush x:Key="AccentFillPressed" Color="#09539F" />
+
+      <!-- The other place white sits on a colour: the CSC segment, which is
+           filled when the destructive archive is the one selected. RedFill
+           cannot be used for it - white on #FF3B30 is 3.55 - so this is the
+           deep red that carries white at 5.91. -->
+      <SolidColorBrush x:Key="RedDeep" Color="#C0271F" />
+
+      <!-- The window's own backdrop and the coloured band across the top of
+           it. Two stops only and a small spread: a backdrop that announces
+           itself is a backdrop that competes with the content. -->
+      <LinearGradientBrush x:Key="HeaderBandFill" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="#E8F1FF" />
+        <GradientStop Offset="1" Color="#F3EAFD" />
+      </LinearGradientBrush>
+
+      <!-- The progress fill, blue into teal, left to right. -->
+      <LinearGradientBrush x:Key="ProgressFill" StartPoint="0%,0%" EndPoint="100%,0%">
+        <GradientStop Offset="0" Color="#0A7AFF" />
+        <GradientStop Offset="1" Color="#17A2B8" />
+      </LinearGradientBrush>
+
+      <!-- Two shadows, not one: a tight 1 px contact shadow that reads as the
+           card touching the surface, and a wide soft one that lifts it. This
+           is the macOS popover recipe. Modern macOS cards do carry a shadow;
+           what reads as a Win32 panel is a hard offset shadow with a bevel,
+           and neither of these is that. -->
+      <BoxShadows x:Key="CardShadow">0 1 1 0 #14000000, 0 6 16 -4 #1A000000</BoxShadows>
+      <BoxShadows x:Key="BandShadow">0 1 0 0 #0F000000</BoxShadows>
+
+    </ResourceDictionary>
+
+    <ResourceDictionary x:Key="Dark">
+
+      <SolidColorBrush x:Key="AppBackground"  Color="#1B1B1D" />
+      <SolidColorBrush x:Key="CardBackground" Color="#2B2B2E" />
+      <SolidColorBrush x:Key="CardBorder"     Color="#45454A" />
+      <SolidColorBrush x:Key="SubtleFill"     Color="#232326" />
+      <SolidColorBrush x:Key="Hairline"       Color="#38383A" />
+
+      <SolidColorBrush x:Key="TextPrimary"    Color="#F2F2F7" />
+      <SolidColorBrush x:Key="TextSecondary"  Color="#B9B9C0" />
+      <SolidColorBrush x:Key="TextTertiary"   Color="#9D9DA6" />
+      <SolidColorBrush x:Key="TextOnAccent"   Color="#FFFFFF" />
+
+      <!-- In dark the Tint is a deep, desaturated version of the hue rather
+           than a pale one: a pale wash on a near-black card is a glare
+           source, and the hue's own Text colour then has nowhere to go. -->
+      <SolidColorBrush x:Key="BlueFill"   Color="#0A84FF" />
+      <SolidColorBrush x:Key="BlueTint"   Color="#14324F" />
+      <SolidColorBrush x:Key="BlueText"   Color="#8BC4FF" />
+
+      <SolidColorBrush x:Key="GreenFill"  Color="#30D158" />
+      <SolidColorBrush x:Key="GreenTint"  Color="#14361F" />
+      <SolidColorBrush x:Key="GreenText"  Color="#7BE09B" />
+
+      <SolidColorBrush x:Key="OrangeFill" Color="#FF9F0A" />
+      <SolidColorBrush x:Key="OrangeTint" Color="#3A2A10" />
+      <SolidColorBrush x:Key="OrangeText" Color="#F8C275" />
+
+      <SolidColorBrush x:Key="RedFill"    Color="#FF453A" />
+      <SolidColorBrush x:Key="RedTint"    Color="#3C1D1B" />
+      <SolidColorBrush x:Key="RedText"    Color="#FFA49C" />
+
+      <SolidColorBrush x:Key="PurpleFill" Color="#BF5AF2" />
+      <SolidColorBrush x:Key="PurpleTint" Color="#2E1C3F" />
+      <SolidColorBrush x:Key="PurpleText" Color="#D9A6F7" />
+
+      <SolidColorBrush x:Key="TealFill"   Color="#64D2FF" />
+      <SolidColorBrush x:Key="TealTint"   Color="#113039" />
+      <SolidColorBrush x:Key="TealText"   Color="#86D9EC" />
+
+      <SolidColorBrush x:Key="PinkFill"   Color="#FF375F" />
+      <SolidColorBrush x:Key="PinkTint"   Color="#3A1626" />
+      <SolidColorBrush x:Key="PinkText"   Color="#FFA2B8" />
+
+      <!-- The same accent as the light dictionary, on purpose: see the note
+           there. White on #1A72DD is 4.67 and on #0B63CE is 5.69. -->
+      <LinearGradientBrush x:Key="AccentFill" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Offset="0" Color="#1A72DD" />
+        <GradientStop Offset="1" Color="#0B63CE" />
+      </LinearGradientBrush>
+      <LinearGradientBrush x:Key="AccentFillHover" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Offset="0" Color="#1C74DF" />
+        <GradientStop Offset="1" Color="#1468CF" />
+      </LinearGradientBrush>
+      <SolidColorBrush x:Key="AccentFillPressed" Color="#09539F" />
+
+      <SolidColorBrush x:Key="RedDeep" Color="#C0271F" />
+
+      <LinearGradientBrush x:Key="HeaderBandFill" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="#1E2A3A" />
+        <GradientStop Offset="1" Color="#2A2137" />
+      </LinearGradientBrush>
+
+      <LinearGradientBrush x:Key="ProgressFill" StartPoint="0%,0%" EndPoint="100%,0%">
+        <GradientStop Offset="0" Color="#0A84FF" />
+        <GradientStop Offset="1" Color="#64D2FF" />
+      </LinearGradientBrush>
+
+      <!-- Heavier in dark, because the only thing separating a #2B2B2E card
+           from a #1B1B1D backdrop is 1.2:1 of luminance and a hairline. -->
+      <BoxShadows x:Key="CardShadow">0 1 1 0 #40000000, 0 8 20 -6 #59000000</BoxShadows>
+      <BoxShadows x:Key="BandShadow">0 1 0 0 #40000000</BoxShadows>
+
+    </ResourceDictionary>
+
+  </ResourceDictionary.ThemeDictionaries>
+
+  <!-- Type scale. Five sizes, no more, and no FontFamily on any of them: the
+       window inherits the system UI font at the system size, which is half of
+       what makes it look like a macOS panel. -->
+  <!-- macOS system text is 13 pt; a dense tool panel reads one step up from
+       that. Caption carries the log and the tables, so it is 13 and not 12:
+       at 12 the mono columns were the smallest thing on screen and the thing
+       people actually read. -->
+  <x:Double x:Key="FontSizeMicro">12</x:Double>
+  <x:Double x:Key="FontSizeCaption">13</x:Double>
+  <x:Double x:Key="FontSizeBody">14</x:Double>
+  <x:Double x:Key="FontSizeSubtitle">18</x:Double>
+  <x:Double x:Key="FontSizeTitle">22</x:Double>
+
+  <!-- A 4 px grid, as Thickness for Margin and Padding. -->
+  <Thickness x:Key="SpaceXs">4</Thickness>
+  <Thickness x:Key="SpaceSm">8</Thickness>
+  <Thickness x:Key="SpaceMd">12</Thickness>
+  <Thickness x:Key="SpaceLg">16</Thickness>
+  <Thickness x:Key="SpaceXl">24</Thickness>
+
+  <!-- The same grid as plain numbers. StackPanel.Spacing and Grid column
+       widths are doubles, and Avalonia will not convert a Thickness resource
+       into one, so the scale has to exist in both shapes. These carry the same
+       numbers. -->
+  <x:Double x:Key="SpaceXsValue">4</x:Double>
+  <x:Double x:Key="SpaceSmValue">8</x:Double>
+  <x:Double x:Key="SpaceMdValue">12</x:Double>
+  <x:Double x:Key="SpaceLgValue">16</x:Double>
+  <x:Double x:Key="SpaceXlValue">24</x:Double>
+
+  <!-- Further Thickness shapes the 4 px grid needs and a uniform value cannot
+       express: a row's vertical padding, the one-pixel bottom rule that
+       separates two rows, the padding of a grouped section's title bar, a
+       capsule badge's padding, and the 3 px coloured bar down the left edge
+       of a callout. -->
+  <Thickness x:Key="RowPadding">0,10</Thickness>
+  <Thickness x:Key="RowRule">0,0,0,1</Thickness>
+  <Thickness x:Key="GroupHeaderPadding">14,9</Thickness>
+  <Thickness x:Key="BadgePadding">8,2</Thickness>
+  <Thickness x:Key="CalloutPadding">12,9</Thickness>
+  <Thickness x:Key="CalloutBar">3,0,0,0</Thickness>
+
+  <!-- ROUNDED, and rounded the way macOS is: a 12 px card, a 7 px control and
+       a true capsule for anything that is a badge or a segmented control.
+       RadiusCardInner is 11, one less than the card, so a title bar that
+       reaches the card's inner edge follows its curve exactly instead of
+       being clipped to it - which is what lets the card keep its shadow,
+       since ClipToBounds would cut the shadow off too. -->
+  <CornerRadius x:Key="RadiusCard">12</CornerRadius>
+  <CornerRadius x:Key="RadiusCardInner">11,11,0,0</CornerRadius>
+  <CornerRadius x:Key="RadiusControl">7</CornerRadius>
+  <CornerRadius x:Key="RadiusWell">9</CornerRadius>
+  <CornerRadius x:Key="RadiusPill">999</CornerRadius>
+
+  <!-- The one exception to "never set FontFamily": columns of hex offsets and
+       byte counts that do not line up are a real legibility defect, and so is
+       a log whose timestamps wander. Declared as a fallback list so it
+       degrades to something sensible on a Linux box that has none of the
+       first three. -->
+  <FontFamily x:Key="MonoFontFamily">ui-monospace, SF Mono, Menlo, DejaVu Sans Mono, Consolas, monospace</FontFamily>
+
+</ResourceDictionary>

@@ -1,0 +1,545 @@
+EnneaOdin - NOTICE
+==================
+
+EnneaOdin is Copyright (c) 2025 EnneaOdin contributors and is distributed
+under the GNU General Public License, version 3 or later. The full licence
+text is in LICENCE in this directory.
+
+
+Vendored dependency: Heimdall
+-----------------------------
+
+The directory native/vendor/Heimdall/ is a copy of Heimdall v2.2.2, taken from
+the grimler fork:
+
+    https://git.sr.ht/~grimler/Heimdall
+
+The version string "v2.2.2" is in the vendored tree itself, at
+native/vendor/Heimdall/heimdall/source/Interface.cpp:45.
+
+Heimdall is distributed under the MIT licence. Its copyright notices, taken
+verbatim from native/vendor/Heimdall/LICENSE, are:
+
+    Copyright (c) 2010-2017 Benjamin Dobell, Glass Echidna
+    Copyright (c) 2021-2024 Henrik Grimler
+
+The MIT permission notice in native/vendor/Heimdall/LICENSE is retained as that
+licence requires.
+
+
+What was done to the vendored tree, precisely
+---------------------------------------------
+
+It was MOVED. The tree used to sit at Heimdall/ in the repository root, where it
+was read-only reference material. It now sits at native/vendor/Heimdall/ and is
+COMPILED INTO the application: its C++ is built into the native library that
+OdinCore calls, so the Samsung download-mode protocol runs as Heimdall's own
+code rather than as a reimplementation of it.
+
+Apart from the move, exactly four files are edited. Every edit is marked in
+place with a comment beginning "EnneaOdin:".
+
+  heimdall/source/BridgeManager.cpp
+      NINE separate kinds of change.
+
+      (a) Hooks, which are inert without a hook context. One include of
+      native/src/OdinHooks.h, and nine call sites that use it: a cancellation
+      check in each of the two wait-for-device poll loops (DetectDevice and
+      FindDeviceInterface, once per one-second poll), one in the PIT receive
+      loop (ReceivePitFile, once per PIT part), one in the file transfer loop
+      (SendFile, once per file part), one progress report in that same loop,
+      a cancellation check and a cancellable sleep in EACH of the two
+      bulk-transfer retry loops (SendBulkTransfer and ReceiveBulkTransfer),
+      and the session-banner pause described in (c).
+
+      With no hook context installed - the case for every caller except the
+      EnneaOdin bridge - Cancelled() is false, Progress() does nothing,
+      Attached() is false and Nap() sleeps the whole interval and returns
+      true, so every one of these is a no-op and the file behaves as upstream
+      does.
+
+      The two retry-loop checks are worth stating on their own even though
+      they are inert for a terminal caller. Upstream's retry loop is five
+      attempts with 250, 500, 750, 1000 and 1250 ms between them and a
+      kDefaultTimeoutSend of 3000 ms each, which is 21,750 ms per packet
+      during which a Stop button does nothing at all. The check bounds that to
+      one libusb timeout plus a 50 ms slice; the in-flight transfer itself
+      cannot be interrupted, so that timeout is the floor.
+
+      (b) THREE UNCONDITIONAL FIXES in SendFile, which DO change behaviour for
+      every caller. They are stated plainly here rather than hidden behind (a):
+
+        - The retry path now seeks back to the offset the failed part was read
+          from before rebuilding the retry packet. Upstream rebuilt it from the
+          already-advanced file position, so a retry sent THE NEXT PART'S BYTES
+          as the retry of the failed one. The part-index check did not catch
+          it in the case the retry exists for: if the device had genuinely
+          missed part N it accepted the following chunk as part N and answered
+          with index N, the check passed, part N was never written, and the
+          image landed one packet short with nothing reported. This is a
+          silent-data-corruption fix, which is why it is unconditional.
+        - Both sends now pass the file size SendFile already computed, instead
+          of each packet seeking to the end of the file and back to learn it.
+          For a multi-gigabyte image that removed thousands of seek pairs, each
+          of which also discarded stdio's read buffer.
+        - A short read from disk is now a hard failure. Upstream ignored
+          fread's return value over a zero-filled buffer, so an I/O error
+          shipped a packet of zeros to the device and the flash continued.
+
+      (c) THE HANDSHAKE SENDS ONCE AND READS PATIENTLY. InitialiseProtocol
+      sends with retry OFF and reads the reply with ReceiveBulkTransfer at
+      3000 ms with retries, where upstream retried the send six times and then
+      allowed the reply one bare 1000 ms libusb_bulk_transfer. It clears both
+      endpoints first and names the libusb error behind every failure.
+
+        MEASURED on an SM-A166U under macOS. macOS binds AppleUSBACMData to
+        the CDC data interface and libusb cannot detach it without the
+        com.apple.vm.device-access entitlement or root ("failed to auto-detach
+        the kernel driver for this device" in the verbose log), so the claim
+        succeeds while the pipes still belong to the kernel driver and the
+        send times out. Those six send retries cost about ten seconds and
+        never once helped; on the one attempt that got through, the send
+        worked and the reply did not arrive inside upstream's single second.
+
+        A RETRY LOOP HERE WAS TRIED AND REMOVED. Resetting the device between
+        attempts cannot work from inside this function: libusb_reset_device
+        re-enumerates the handset and invalidates the handle, so the later
+        attempts ran against a dead one - "no connection to an IOService",
+        then LIBUSB_ERROR_NO_DEVICE. Retrying therefore belongs one level up,
+        where the device can be reset and then opened again from scratch, and
+        that is where it now lives (OdinSession.OpenAndBeginAsync).
+
+      (d) A SECOND TRANSPORT, CHOSEN BEFORE libusb OPENS THE DEVICE.
+      SendBulkTransfer and ReceiveBulkTransfer, the two functions every byte of
+      the protocol passes through, branch on which transport the session chose.
+      TrySerialTransport runs FIRST, before FindDeviceInterface; ChooseTransport
+      is the libusb-side fallback and runs after the claim.
+
+        THE ORDER IS THE WHOLE POINT. A libusb claim leaves the kernel driver's
+        own pipes broken, and releasing the interface does not repair them, so
+        the serial node stops carrying traffic as well until the device
+        re-enumerates. An earlier version chose the transport AFTER claiming,
+        which meant it had already broken the only path that works before it
+        tried it. With the order corrected the handshake lands, the session
+        opens, the PIT reads and the flash begins writing.
+
+        WHY. On macOS, Samsung's download mode is a CDC-ACM gadget and the
+        system binds AppleUSBACMData to its data interface.
+        libusb_detach_kernel_driver returns LIBUSB_ERROR_ACCESS for BOTH
+        interfaces and the backend says why: "USB device capture requires
+        either an entitlement (com.apple.vm.device-access) or root
+        privilege". libusb_claim_interface then SUCCEEDS anyway while
+        libusb_kernel_driver_active still reports 1, so the pipes were never
+        handed over and every bulk transfer returns LIBUSB_ERROR_TIMEOUT.
+        Measured on an SM-A166U under macOS 26, as root and as an ordinary
+        user, with and without an explicit detach, with and without
+        libusb_reset_device, and on both interfaces.
+
+        ROOT IS NOT ENOUGH, which was measured rather than assumed: as root,
+        with libusb_set_auto_detach_kernel_driver set, on a single handle with
+        nothing closed in between, libusb_claim_interface returns success while
+        libusb_kernel_driver_active still reports 1 and every bulk transfer
+        times out. Capture needs the com.apple.vm.device-access entitlement,
+        which Apple grants through a provisioning profile.
+
+        WHAT INSTEAD. The kernel driver publishes the same two bulk endpoints
+        as a serial node. Reaching the device through that node needs no
+        entitlement and no root, and the handshake that times out on the bulk
+        endpoints returns LOKE on the FIRST attempt there. The transport lives
+        in src/OdinSerialPort.cpp, which is EnneaOdin's own code and not
+        derived from Heimdall; this entry covers only the two-line branch at
+        the top of each transfer function, the chooser, and the member they
+        read.
+
+        WHEN. Only when a kernel driver still holds the interface after a
+        successful claim. On Linux, on Windows, and on macOS for a device no
+        driver matched, that test is false and libusb is used exactly as
+        before, byte for byte.
+
+        ZERO-LENGTH TRANSFERS have no equivalent on a byte stream. Upstream
+        already treats a failed one as "continue anyway", so on this transport
+        they are reported as done without touching the port.
+
+      (e) THE HANDSHAKE LATCH, AND THE ONE WAY OUT OF IT.
+
+      InitialiseProtocol reads four bytes on the serial transport where
+      upstream reads seven, and when nothing answers it sends a re-arm packet
+      and tries once more. SendRearmPacket is added.
+
+        FOUR BYTES, NOT SEVEN. Odin 3.14.1 writes "ODIN" and reads exactly 4
+        before comparing with "LOKE" (sub_434D50). Upstream reads 7 into the
+        buffer and checks that 4 arrived, which works on a bulk endpoint
+        because a short packet ends the transfer. A byte stream has no packet
+        boundaries, so asking for 7 waits out a timeout for three bytes that
+        are never sent.
+
+        THE LATCH. Reversed from the handset's own bootloader, s-lk.img for an
+        SM-A166U, in usbd3_rdx_process:
+
+            if (latch == 0) {
+                if (!strncmp(rx, "ODIN", 4)) { latch = 1; reply = "LOKE"; }
+                ...
+            } else {
+                ... accumulate 1024 bytes ...
+                if (packet[0] == 103 && packet[1] == 4) {
+                    offset = 0;
+                    latch = 0;
+                }
+            }
+
+        The handset answers ODIN exactly ONCE per entry into download mode.
+        Every later handshake is received and ignored, which is why a second
+        attempt looks identical to a dead transport: the bytes go out, the
+        device takes them, nothing comes back. Black-box testing had already
+        shown the behaviour; the listing shows the mechanism and the escape.
+
+        The escape is a 1024-byte control packet whose first two little-endian
+        words are 103 and 4. 103 is ControlPacket::kControlTypeEndSession. 4
+        is a request Heimdall does not define - EndSessionPacket.h has only
+        kRequestEndSession (0) and kRequestRebootDevice (1). It is sent only
+        after a handshake went unanswered, because the branch that reads it is
+        the one the latch being SET selects.
+
+      (f) A DEVICE-INFORMATION REQUEST, RequestDeviceInfo, which is new and
+      not an adaptation of anything upstream has.
+
+        REVERSED FROM THE HANDSET'S OWN BOOTLOADER, s-lk.img for an SM-A166U.
+        The first command of a download-mode session is matched against a FLAT
+        chain, not just "ODIN" (the chain is at 0xF4810530, its string table at
+        0xF49D0E70): ODIN, FPGM, PROMPT, DVIF, AT+ENGMODES,
+        AT+ENGMODES=1,3,1, @#AuToTEst@#, @#AuToTEstRst@#.
+
+        DVIF answers with up to 256 bytes:
+
+          @#MODEL=..;UN=..;CAPA=..;VENDOR=..;FWVER=..;PRODUCT=..;PROV=..;
+            SALES=..;VER=..;DID=..;TMU_TEMP=..;NAD_TEMP=..;@#
+
+        and its branch does NOT set the latch that "ODIN" sets, so asking
+        costs nothing: the handset still answers one ODIN afterwards.
+
+        The model, firmware version, sales code and capacity are therefore
+        available over the download-mode protocol. EnneaOdin used to state the
+        opposite, in DeviceInformation.ScopeNote, and that was wrong.
+
+      (g) DIAGNOSTICS, which change what is PRINTED and nothing else.
+
+        - InitialiseProtocol now names the libusb error behind "Failed to send
+          handshake!" and behind a failed handshake response, instead of
+          printing the sentence alone. A stalled pipe, a vanished device and a
+          timeout are three different problems with three different answers,
+          and upstream printed the same line for all of them. A member,
+          lastTransferResult, carries the code out of the transfer helpers.
+        - InitialiseProtocol clears both bulk endpoints before the first
+          transfer. An endpoint left halted by a previous attempt rejects
+          everything until it is cleared; this is the session's first
+          transfer, so there is nothing to lose, and a failure is reported
+          rather than fatal.
+        - SetupDeviceInterface no longer returns early when the alternate
+          setting is 0. Upstream's comment was "there should be no need to set
+          alt_setting(?)" - a question mark, not a finding. It is now always
+          attempted; at 0 a failure is reported and ignored, so a device that
+          upstream's guess was right about is unaffected.
+
+      (h) KERNEL DRIVER DETACH, WHICH UPSTREAM DOES ONLY ON LINUX.
+
+        Upstream wraps the whole detach-and-reclaim fallback, the
+        detachedDriver member that records it, and the re-attach on release in
+        "#ifdef OS_LINUX". A kernel driver sitting on the interface is not a
+        Linux-only situation: on macOS, Samsung's download mode is a CDC-ACM
+        gadget that AppleUSBACMData binds to on sight. So:
+
+        - FindDeviceInterface calls libusb_set_auto_detach_kernel_driver before
+          the claim, and reports what it returned.
+        - The detach-then-reclaim fallback in ClaimDeviceInterface, and the
+          re-attach in ReleaseDeviceInterface, are no longer Linux only. A
+          platform that cannot detach returns an error and the second claim
+          fails exactly as the first did, so nothing is lost by trying.
+        - InitialiseProtocol resets the device once and retries the handshake
+          when the first attempt fails. Upstream resets only when IsUbuntu()
+          reads a matching /etc/issue; Heimdall PR 478 and the Arch AUR patch
+          both reset unconditionally for this failure. It is done as a retry,
+          so a device that never needed it is never reset, and nothing has
+          been written to the handset at that point.
+
+        MEASURED, so that the next reader does not have to repeat it: on this
+        machine the detach is supported and does take effect, and it did NOT
+        fix a handset whose bulk endpoints answer nothing. It is kept because
+        it is correct and because claiming without it is what produced a
+        silent timeout, not because it was the cure for that handset.
+
+      (i) THE FILE PART SIZE IS EIGHT TIMES UPSTREAM'S, 8 MiB instead of
+      1 MiB, with four parts a sequence instead of thirty so a sequence stays
+      at 32 MiB rather than growing to 240.
+
+        The handset's own limits, from its bootloader (s-lk.img,
+        process_packet): the part size arrives in control packet {100, 5} and
+        is rejected only when a byte above bit 23 is set, so anything under
+        16 MiB is accepted; the per-sequence byte count arrives in {102, 2}
+        and is rejected at or above 152 MiB. Both are CHECKED by the handset
+        and answered with a failure code that Heimdall propagates, so an
+        over-large value fails loudly rather than writing something wrong.
+
+        8 MiB x 4 = 32 MiB a sequence, which is upstream's 30 MiB with an
+        eighth of the round trips: a 6.7 GiB super.img goes from roughly 6700
+        part exchanges to roughly 840.
+
+        COUPLED TO THE MANAGED SIDE. A failed part is retried by re-reading
+        it, so RewindStream.DefaultWindowBytes has to be at least one part; it
+        was 4 MiB for a 1 MiB part and is now 32 MiB. The windowtest suite
+        checks the two numbers against each other, and against both handset
+        limits, so neither can drift without a failing test.
+
+      (j) THE PERCENTAGE IS NOT PRINTED when a host has a progress callback
+      installed. Upstream draws it in place with backspaces, which a log pane
+      cannot render: it arrives as one line per step, so a single partition
+      contributes up to a hundred lines between the two that matter. The byte
+      counts the callback already receives carry the same information.
+
+      (k) THE HANDSHAKE DRAINS THE PORT, THE DATA PATH DOES NOT. On the
+      serial transport InitialiseProtocol waits for the output queue before it
+      listens for LOKE, because that one exchange is strictly request then
+      response. SerialPort::Write deliberately does not drain: emptying the
+      queue after every write lets the pipe go idle between parts, once per
+      8 MiB for a nine gigabyte flash.
+
+        Odin 3.14.1 does the same thing. Its write (sub_438300) is WriteFile
+        on an overlapped handle followed by GetOverlappedResult with
+        bWait TRUE, and there is no FlushFileBuffers and no wait for the queue
+        anywhere in it. It also does not pipeline: one buffer at a time, each
+        awaited, exactly as this does.
+
+      (l) TWO SMALL CHANGES IN BeginSession.
+
+        - The three-second Sleep after "Some devices may take up to 2 minutes
+          to respond" now runs only when no hook context is installed. The
+          upstream comment says it is there to "Give the user time to read the
+          message", which is right for a terminal and is three seconds of dead
+          time for a graphical host that already printed the same sentence in
+          its log. A terminal build is unchanged, because Attached() is false
+          for it.
+        - The begin-session response's packet size is now also stored on the
+          BridgeManager, in a member added for it. Upstream reads it into a
+          local, branches on whether it is zero and discards it; zero is the
+          device saying it will not accept a packet-size change, which is
+          worth reporting. Nothing branches on the stored copy.
+
+  heimdall/source/SendFilePartPacket.h
+      The other half of the three fixes above. A new three-argument
+      constructor that takes the size the caller already knows; corrected
+      remaining-bytes arithmetic (upstream computed min(fileSize, size) where
+      the comment and the intent both said min(size, fileSize - position));
+      and three read-only accessors - ShortRead, GetBytesRead and
+      GetReadOffset - with the three private members behind them. The original
+      two-argument FILE * constructor is kept and still measures the size
+      itself, so any caller using the old signature behaves as before rather
+      than silently sending zeros. All three constructors initialise all three
+      members.
+
+  heimdall/source/BridgeManager.h
+      Four read-only accessors added next to the existing GetUsbLogLevel and
+      IsVerbose: GetFileTransferPacketSize, GetFileTransferSequenceMaxLength,
+      GetFileTransferSequenceTimeout and GetDeviceDefaultPacketSize. The first
+      three read members that are private and that BeginSession settles, so a
+      caller that puts the numbers on screen had no way to read them and would
+      have had to guess which set was in force.
+
+      detachedDriver is no longer declared under "#ifdef OS_LINUX", matching
+      the detach change in BridgeManager.cpp (d).
+
+      A SerialPort member and the flag that selects it are added, with two
+      read-only accessors for them, for the transport described in
+      BridgeManager.cpp (d). ChooseTransport is declared.
+
+      TWO MEMBERS ARE ADDED. deviceDefaultPacketSize, written once in
+      BeginSession from the begin-session response and once in Initialise to
+      zero it. It is read by its accessor and by nothing else, so no protocol
+      decision depends on it. And lastTransferResult, mutable because the
+      transfer helpers are const, written by every bulk transfer and read only
+      to name an error in a message. Neither changes a protocol decision. The
+      first version of this entry said "no member is added", which was true of
+      that version and is not true of this one.
+
+  libpit/source/libpit.h
+      Two one-word corrections, in PitEntry::SetFlashFilename and
+      PitEntry::SetFotaFilename. Both guarded their strcpy with
+      strlen(partitionName) - a different field - instead of the argument they
+      were about to copy. Since the partitionName member is always terminated
+      inside 32 bytes, the guard was always true and the strcpy had no length
+      check at all, so a PIT whose 32-byte flash-filename or FOTA-filename
+      field carried no terminator - the format does not require one - copied
+      past the end of a 32-byte member. A PIT read from a device or chosen by
+      the user reaches that code, which is why it is fixed here rather than
+      worked around. Reported in this NOTICE because it is a behavioural change
+      to vendored code, not only a safety one.
+
+Nothing else is modified, reformatted or regenerated, including LICENSE and
+heimdall/60-heimdall.rules. heimdall-frontend/ (the Qt front end) and
+heimdall/source/main.cpp are present and are deliberately not built: the front
+end is not needed, and main.cpp owns a process entry point that belongs to the
+host application.
+
+That claim is mechanically checkable against the pre-move history:
+
+    for old in $(git ls-tree -r --name-only HEAD Heimdall/); do
+        new="native/vendor/${old}"
+        git show "HEAD:$old" | cmp -s - "$new" || echo "CHANGED $old"
+    done
+
+On the two licences: Heimdall's MIT terms permit relicensing a derivative work
+under the GPL, provided the MIT copyright notice and permission notice are
+retained, which they are. They also permit modifying and compiling the code into
+a larger work, which is what this project does. EnneaOdin's choice of GPL-3.0 is
+a free choice by this project and not an obligation inherited from Heimdall.
+
+EnneaOdin does not require, bundle, call or start any heimdall binary, and never
+starts a child process to talk to a device. The protocol is in-process.
+
+The derivation map below lists paths relative to native/vendor/Heimdall/. Files
+in OdinCore that were ported to C# before the C++ was compiled in keep their
+derivation headers and their `<file>:<line>` citations, which name vendored files
+by basename and therefore still resolve after the move.
+
+
+Derivation map: which EnneaOdin file came from which Heimdall file
+------------------------------------------------------------------
+
+The C# packet layer is gone
+--------------------------
+
+OdinCore used to carry a C# transcription of Heimdall's packet classes and of
+BridgeManager's transport: OdinCore/Protocol/Packets/ (OutboundPacket.cs,
+InboundPacket.cs, ControlPackets.cs, PitPackets.cs, FilePackets.cs) and
+OdinCore/Usb/UsbDeviceHandle.cs. Those files were DELETED when the vendored C++
+became the engine, because two implementations of one wire protocol is worse
+than one, and because the C++ is the one upstream maintains. Their derivation
+entries are therefore gone from the map below rather than left to describe
+files that no longer exist. git history holds them.
+
+Protocol constants
+
+  OdinCore/Protocol/OdinConstants.cs
+      heimdall/source/EndFileTransferPacket.h (the destinations),
+      BridgeManager.h (the modem file identifier, the default USB log level),
+      BridgeManager.cpp (the pre-negotiation transfer geometry, the
+      begin-session pause), FlashAction.cpp (the USB log level names)
+
+Session and transport
+
+  OdinCore/Native/OdinNative.cs
+  OdinCore/Native/OdinNativeLoader.cs
+  OdinCore/Native/OdinNativeCallbacks.cs
+      native/include/odin_bridge.h. These declare the C ABI and do not
+      reimplement anything; the Heimdall files behind the ABI are listed in
+      native/README.md.
+
+  OdinCore/Protocol/OdinSession.cs
+      heimdall/source/BridgeManager.cpp and BridgeManager.h (the operation set
+      and its order), FlashAction.cpp:155-201 and :434-466 (the total-bytes
+      and T-Flash exchanges), ClosePcScreenAction.cpp:110-118. The file is now
+      a managed facade over the ABI: it names the C++ it drives and sends no
+      packets of its own.
+
+  OdinCore/Protocol/OdinSessionState.cs
+      heimdall/source/BridgeManager.cpp (Initialise, BeginSession, EndSession),
+      DownloadPitAction.cpp, PrintPitAction.cpp, ClosePcScreenAction.cpp,
+      doc/Heimdall-flash-instructions.md
+
+  OdinCore/Usb/UsbEnumerator.cs
+      heimdall/source/BridgeManager.cpp (DetectDevice, FindDeviceInterface),
+      BridgeManager.h (kVidSamsung and the product-id set)
+
+  OdinCore/Usb/UsbDescriptorReader.cs
+      heimdall/source/BridgeManager.cpp (FindDeviceInterface: the descriptor
+      dump, the string-descriptor reads, the download-interface selection rule)
+
+  OdinCore/Usb/UsbDeviceRecord.cs
+      heimdall/source/BridgeManager.cpp (the descriptor dump)
+
+  OdinCore/Usb/UsbIds.cs
+      heimdall/source/BridgeManager.h (kVidSamsung, kPidGalaxyS, kPidGalaxyS2,
+      kPidDroidCharge), BridgeManager.cpp (supportedDevices,
+      USB_CLASS_CDC_DATA), heimdall/60-heimdall.rules (the udev rule form)
+
+  OdinCore/Usb/UsbAccess.cs
+      heimdall/source/BridgeManager.cpp (the claim path this file diagnoses
+      before it is run), heimdall/60-heimdall.rules
+
+  OdinCore/Usb/UsbPlatform.cs
+      heimdall/source/BridgeManager.cpp (IsUbuntu), BridgeManager.h (the
+      OS_LINUX guards)
+
+PIT
+
+  OdinCore/Protocol/PitEntry.cs
+      libpit/source/libpit.h, libpit/source/libpit.cpp,
+      heimdall/source/FlashAction.cpp, heimdall/source/Interface.cpp
+
+  OdinCore/Protocol/PitData.cs
+      libpit/source/libpit.h, libpit/source/libpit.cpp,
+      heimdall/source/PrintPitAction.cpp, heimdall/source/FlashAction.cpp
+
+  OdinCore/Protocol/PitTextFormatter.cs
+      heimdall/source/Interface.cpp (Interface::PrintPit), libpit/source/libpit.h
+
+Flash orchestration
+
+  OdinCore/Flash/FlashOptions.cs
+      heimdall/source/FlashAction.cpp, heimdall/source/BridgeManager.cpp
+
+  OdinCore/Flash/FlashPlan.cs
+      heimdall/source/FlashAction.cpp, libpit/source/libpit.h
+
+  OdinCore/Flash/FlashPlanner.cs
+      heimdall/source/FlashAction.cpp (setupPartitionFlashInfo,
+      flashPartitions, getPitData), libpit/source/libpit.cpp (FindEntry),
+      libpit/source/libpit.h
+
+  OdinCore/Flash/FlashRunner.cs
+      heimdall/source/FlashAction.cpp (Execute, flashPartitions, flashFile,
+      sendTotalTransferSize), heimdall/source/BridgeManager.cpp
+
+Presentation of device data
+
+  OdinCore/Devices/DeviceInformation.cs
+      heimdall/source/BridgeManager.cpp (DetectDevice, FindDeviceInterface),
+      heimdall/source/Interface.cpp (PrintPit),
+      heimdall/source/FlashAction.cpp, libpit/source/libpit.h,
+      libpit/source/libpit.cpp
+
+  EnneaOdin/ViewModels/MainWindowViewModel.cs
+      heimdall/source/ClosePcScreenAction.cpp (the "Close PC screen" and
+      "Reboot device" sequence), PrintPitAction.cpp and DownloadPitAction.cpp
+      (their no-reboot defaults), FlashAction.cpp (the order of a flash)
+
+51-samsung-download.rules
+      heimdall/60-heimdall.rules (the rule form: TAG+="uaccess"). The file is
+      generated by OdinCore.Usb.SamsungIds.UdevRulesText() so the rules and the
+      scanner cannot drift apart.
+
+Not derived from Heimdall; original to this project
+
+  OdinCore/Interop/*          the libusb P/Invoke surface and its loader
+  OdinCore/Firmware/*         tar, .tar.md5 digest and LZ4 handling. Confirmed
+                              by grep over the whole vendored tree: Heimdall
+                              contains no tar, no lz4 and no md5 code, so the
+                              firmware-package layer is new code, not a port.
+  OdinCore/Diagnostics/*      the event and log model
+  EnneaOdin/**                the Avalonia user interface, except the view
+                              model's action sequences noted above
+
+
+Third-party packages (restored by NuGet, not vendored here)
+-----------------------------------------------------------
+
+  Avalonia 11.1.3                         MIT
+  Avalonia.Desktop 11.1.3                 MIT
+  Avalonia.Themes.Fluent 11.1.3           MIT
+  CommunityToolkit.Mvvm 8.3.2             MIT
+  SharpZipLib 1.4.2                       MIT
+  K4os.Compression.LZ4.Streams 1.3.8      MIT
+  (pulls K4os.Compression.LZ4, K4os.Hash.xxHash, System.IO.Pipelines)
+
+  libusb-1.0                              LGPL-2.1-or-later. A system library,
+                                          not bundled and not statically
+                                          linked; loaded at runtime from the
+                                          platform's own installation.

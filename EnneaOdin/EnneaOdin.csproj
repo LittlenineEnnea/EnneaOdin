@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
+    <!-- WinExe is the documented Avalonia setting; on macOS and Linux it only
+         means "do not allocate a console window", so it is harmless here. -->
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -7,19 +10,38 @@
     <AssemblyName>EnneaOdin</AssemblyName>
     <RootNamespace>EnneaOdin</RootNamespace>
     <Version>1.0.0</Version>
-    <Authors>EnneaOdin</Authors>
-    <Description>Cross-platform Samsung flash tool for macOS and Linux</Description>
+    <Authors>EnneaOdin contributors</Authors>
+    <Description>Samsung download-mode flash tool for macOS and Linux</Description>
+    <!-- Every binding in this project is compiled, so a binding path that does
+         not resolve is a build error rather than a silently empty control. -->
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <EnableWindowsTargeting>false</EnableWindowsTargeting>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia"                   Version="11.1.3" />
-    <PackageReference Include="Avalonia.Desktop"           Version="11.1.3" />
-    <PackageReference Include="Avalonia.Themes.Fluent"     Version="11.1.3" />
-    <PackageReference Include="Avalonia.Fonts.Inter"       Version="11.1.3" />
-    <PackageReference Include="Avalonia.ReactiveUI"        Version="11.1.3" />
-    <PackageReference Include="ReactiveUI"                 Version="20.1.1" />
-    <PackageReference Include="CommunityToolkit.Mvvm"      Version="8.3.2"  />
+    <!-- Avalonia, its Fluent theme, FluentAvalonia and the MVVM toolkit.
+         ReactiveUI, Avalonia.ReactiveUI and Avalonia.Fonts.Inter are all gone:
+         the view model is flat property-and-command state with no
+         observable-stream composition, which is exactly what the
+         CommunityToolkit source generators cover, and every control inherits
+         the system UI font, which is what makes the window look native. -->
+    <PackageReference Include="Avalonia"              Version="11.1.3" />
+    <PackageReference Include="Avalonia.Desktop"      Version="11.1.3" />
+    <!-- Avalonia.Themes.Fluent is deliberately NOT referenced. The comment
+         that used to sit here said it was needed because FluentAvalonia's
+         control styles resolve Fluent theme resources. That was not tested
+         and it is not true of 11.1.3: with the reference removed the solution
+         builds, the package does not arrive transitively, no
+         Avalonia.Themes.Fluent assembly is produced, and the window renders
+         identically in both theme variants. Checked by rendering the real
+         MainWindow off screen with Skia, light and dark, before and after. -->
+    <!-- The control vocabulary this window is built from: NavigationView,
+         InfoBar, SettingsExpander, ContentDialog, SymbolIcon. 2.2.0 is the
+         last release that declares Avalonia 11.1.x; 2.3.0 and 2.4.x require
+         11.2.5, 2.5.x require net10.0 and 3.x require Avalonia 12, so any of
+         those would force a framework bump. -->
+    <PackageReference Include="FluentAvaloniaUI"       Version="2.2.0"  />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2"  />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,4 +51,5 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets/**" />
   </ItemGroup>
+
 </Project>
