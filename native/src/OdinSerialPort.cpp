@@ -104,6 +104,14 @@ namespace EnneaOdin
 		: descriptor(-1)
 	{
 		openPath[0] = '\0';
+
+		writeStats.calls = 0;
+		writeStats.polls = 0;
+		writeStats.bytes = 0;
+		writeStats.microsWriting = 0;
+		writeStats.microsPolling = 0;
+		writeStats.smallestAccepted = -1;
+		writeStats.largestAccepted = 0;
 	}
 
 	SerialPort::~SerialPort(void)
@@ -230,6 +238,22 @@ namespace EnneaOdin
 		settle.tv_nsec = (long)(kSettleMs % 1000) * 1000000L;
 		nanosleep(&settle, NULL);
 
+		/* The open needed O_NONBLOCK so it could not hang waiting for carrier.
+		   Writing wants the opposite.
+		   
+		   Odin hands a whole part to the driver in one WriteFile and waits for
+		   it; the Windows driver streams it without ever coming back to user
+		   space. A non-blocking descriptor cannot do that: write() takes only
+		   what fits in the tty's output queue and returns, so every few
+		   kilobytes costs a poll wakeup, and an 8 MiB part pays that hundreds
+		   of times. Blocking lets one write() copy, sleep inside the kernel
+		   while the driver drains, and carry on - the waiting happens where
+		   the data is. */
+		int flags = fcntl(descriptor, F_GETFL, 0);
+
+		if (flags >= 0)
+			fcntl(descriptor, F_SETFL, flags & ~O_NONBLOCK);
+
 		return true;
 	}
 
@@ -242,6 +266,28 @@ namespace EnneaOdin
 		}
 
 		openPath[0] = '\0';
+	}
+
+	static long long Micros(void)
+	{
+		struct timespec now;
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		return (long long)now.tv_sec * 1000000LL + now.tv_nsec / 1000;
+	}
+
+	SerialPort::WriteStats SerialPort::TakeWriteStats(void)
+	{
+		WriteStats taken = writeStats;
+
+		writeStats.calls = 0;
+		writeStats.polls = 0;
+		writeStats.bytes = 0;
+		writeStats.microsWriting = 0;
+		writeStats.microsPolling = 0;
+		writeStats.smallestAccepted = -1;
+		writeStats.largestAccepted = 0;
+
+		return (taken);
 	}
 
 	bool SerialPort::DrainFor(int timeoutMs)
@@ -292,12 +338,23 @@ namespace EnneaOdin
 
 		while (done < length)
 		{
+			int chunk = length - done;
+
+			if (chunk > kWriteChunkBytes)
+				chunk = kWriteChunkBytes;
+
+			/* One poll per chunk, not per write: it is what keeps the timeout
+			   meaningful on a descriptor that now blocks. A full queue is
+			   reported here rather than discovered by a short write. */
 			struct pollfd waiting;
 			waiting.fd = descriptor;
 			waiting.events = POLLOUT;
 			waiting.revents = 0;
 
+			long long pollBegan = Micros();
 			int ready = poll(&waiting, 1, timeoutMs);
+			writeStats.microsPolling += Micros() - pollBegan;
+			writeStats.polls++;
 
 			if (ready < 0)
 			{
@@ -313,17 +370,49 @@ namespace EnneaOdin
 			if ((waiting.revents & (POLLERR | POLLHUP | POLLNVAL)) != 0)
 				return -1;
 
-			ssize_t written = write(descriptor, data + done, (size_t)(length - done));
+			int inChunk = 0;
 
-			if (written < 0)
+			while (inChunk < chunk)
 			{
-				if (errno == EINTR || errno == EAGAIN)
-					continue;
+				long long writeBegan = Micros();
+				ssize_t written = write(descriptor,
+				                        data + done + inChunk,
+				                        (size_t)(chunk - inChunk));
+				writeStats.microsWriting += Micros() - writeBegan;
+				writeStats.calls++;
 
-				return -1;
+				if (written > 0)
+				{
+					writeStats.bytes += written;
+
+					if (writeStats.smallestAccepted < 0
+					    || written < writeStats.smallestAccepted)
+						writeStats.smallestAccepted = (int)written;
+
+					if (written > writeStats.largestAccepted)
+						writeStats.largestAccepted = (int)written;
+				}
+
+				if (written < 0)
+				{
+					if (errno == EINTR)
+						continue;
+
+					/* The descriptor is meant to block, but a driver can still
+					   hand back EAGAIN. Fall back to waiting for room. */
+					if (errno == EAGAIN)
+						break;
+
+					return -1;
+				}
+
+				if (written == 0)
+					break;
+
+				inChunk += (int)written;
 			}
 
-			done += (int)written;
+			done += inChunk;
 		}
 
 		/* NO DRAIN HERE, and that is the point.
@@ -331,9 +420,9 @@ namespace EnneaOdin
 		   Draining after every write empties the kernel's output queue before
 		   the next one is allowed to start, so the USB pipe goes idle in the
 		   gap between "queue empty" and "next write queued" - once per 8 MiB
-		   part, for every part of a nine gigabyte flash. The poll loop above
-		   has already got every byte into the kernel; leaving them there is
-		   what keeps the pipe full.
+		   part, for every part of a nine gigabyte flash. The loop above has
+		   already got every byte into the kernel; leaving them there is what
+		   keeps the pipe full.
 		   
 		   A caller that is about to wait for a reply, rather than send more,
 		   calls DrainFor itself. InitialiseProtocol is the one that does. */

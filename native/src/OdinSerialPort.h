@@ -33,6 +33,23 @@ namespace EnneaOdin
 	class SerialPort
 	{
 		public:
+			/* Where a write actually spends its time. Measured rather than
+			   reasoned about: an 8 MiB part takes about 11.5 s on this
+			   handset, and nothing in user space explains that, so the
+			   question is how many write() calls it takes, how much the
+			   kernel accepts each time, and whether the wait is inside
+			   write() or inside poll(). */
+			struct WriteStats
+			{
+				long long calls;            /* write() calls */
+				long long polls;            /* poll() calls */
+				long long bytes;
+				long long microsWriting;
+				long long microsPolling;
+				int smallestAccepted;
+				int largestAccepted;
+			};
+
 
 			/* The longest /dev path this will report. */
 			static const size_t kMaxPathLength = 256;
@@ -72,6 +89,12 @@ namespace EnneaOdin
 			   that lands and one that is never answered. */
 			static const int kSettleMs = 500;
 
+			/* How much is handed to one write(). Odin's unit is 1 MiB and the
+			   kernel streams a chunk this size without returning, so the cost
+			   of a poll is paid once per megabyte instead of per few KB. */
+			static const int kWriteChunkBytes = 1048576;
+
+
 			/* How long to keep waiting for more bytes once some have
 			   arrived. A byte stream has no packet boundaries, so this is
 			   what stands in for a short USB packet ending a transfer.
@@ -104,6 +127,10 @@ namespace EnneaOdin
 			   waits on the event with its own timeout. */
 			bool DrainFor(int timeoutMs);
 
+			/* Reads the counters and clears them, so a caller can report one
+			   part without the next one inheriting its totals. */
+			WriteStats TakeWriteStats(void);
+
 			/* Throw away anything the kernel has buffered in either
 			   direction. Called before a handshake so a previous attempt's
 			   leftovers cannot be mistaken for this attempt's reply. */
@@ -112,6 +139,8 @@ namespace EnneaOdin
 			const char *Path(void) const { return openPath; }
 
 		private:
+
+			mutable WriteStats writeStats;
 
 			SerialPort(const SerialPort&);
 			SerialPort& operator=(const SerialPort&);

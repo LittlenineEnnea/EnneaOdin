@@ -55,6 +55,7 @@ public sealed class FlashRunner
 
         var completed = new List<string>();
         var failed = new List<string>();
+        var runClock = System.Diagnostics.Stopwatch.StartNew();
         bool cancelRequested = false;
         bool pitUploaded = false;
         long overallDone = 0;
@@ -108,6 +109,11 @@ public sealed class FlashRunner
 
                 string phase = string.Format(CultureInfo.InvariantCulture,
                     "uploading {0} ({1} of {2})", partition, i + 1, plan.Items.Count);
+
+                // Odin prints a time elapsed of its own at the end of a flash.
+                // Per image as well here, because without it a pasted log says
+                // nothing about where a slow run spent its time.
+                var itemClock = System.Diagnostics.Stopwatch.StartNew();
 
                 // Indeterminate between partitions: the device has not yet
                 // acknowledged anything for this one.
@@ -165,7 +171,10 @@ public sealed class FlashRunner
                 overallDone = doneBefore + item.Length;
                 completed.Add(partition);
 
-                _log.Report(OdinEvent.Info(partition + " upload successful", "flash"));   // FlashAction.cpp:265, :281
+                // FlashAction.cpp:265, :281, with the duration appended.
+                _log.Report(OdinEvent.Info(string.Format(CultureInfo.InvariantCulture,
+                    "{0} upload successful   {1}", partition,
+                    Elapsed(itemClock.Elapsed)), "flash"));
 
                 progress?.Report(new FlashProgress(partition, 100, overallDone, overallTotal,
                     Percent(overallDone, overallTotal), false, phase));
@@ -199,8 +208,8 @@ public sealed class FlashRunner
         if (success)
         {
             _log.Report(OdinEvent.Info(string.Format(CultureInfo.InvariantCulture,
-                "All {0} partition(s) written: {1} bytes.",
-                completed.Count, overallDone), "flash"));
+                "All {0} partition(s) written: {1} bytes in {2}.",
+                completed.Count, overallDone, Elapsed(runClock.Elapsed)), "flash"));
         }
         else
         {
@@ -231,4 +240,16 @@ public sealed class FlashRunner
 
     private static int Percent(long done, long total) =>
         total <= 0 ? 0 : (int)(100.0 * ((double)done / total));
+
+    /// <summary>A duration, short enough to sit at the end of a log line.</summary>
+    private static string Elapsed(TimeSpan took)
+    {
+        if (took.TotalMinutes >= 1)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "{0}m {1:00}s",
+                                 (int)took.TotalMinutes, took.Seconds);
+        }
+
+        return string.Format(CultureInfo.InvariantCulture, "{0:0.0}s", took.TotalSeconds);
+    }
 }

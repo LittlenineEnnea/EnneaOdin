@@ -1095,6 +1095,30 @@ bool BridgeManager::SendBulkTransfer(unsigned char *data, int length, int timeou
 
 			if (written == length)
 			{
+				/* EnneaOdin: where the time went, for a payload big enough to
+				   matter. An 8 MiB part takes about 11.5 s on this handset and
+				   making the writes blocking changed nothing, so this says
+				   whether the kernel is taking the data in small pieces, and
+				   whether the wait is inside write() or inside poll(). */
+				if (verbose && length >= 1048576)
+				{
+					EnneaOdin::SerialPort::WriteStats spent
+						= serialPort.TakeWriteStats();
+
+					Interface::Print(
+						"    %d bytes: %lld write(s) of %d..%d bytes, %lld poll(s); "
+						"%lld ms in write, %lld ms in poll -> %.2f MB/s\n",
+						length,
+						spent.calls, spent.smallestAccepted, spent.largestAccepted,
+						spent.polls,
+						spent.microsWriting / 1000, spent.microsPolling / 1000,
+						(spent.microsWriting + spent.microsPolling) > 0
+							? (double)spent.bytes / 1048576.0
+							  / ((double)(spent.microsWriting + spent.microsPolling)
+							     / 1000000.0)
+							: 0.0);
+				}
+
 				lastTransferResult = LIBUSB_SUCCESS;
 				return (true);
 			}
